@@ -9,6 +9,7 @@ class WhatsAppService {
     this.client = null;
     this.isClientReady = false;
     this.io = null;
+    this.profileData = null;
   }
 
   initialize(io) {
@@ -35,6 +36,14 @@ class WhatsAppService {
       this.isClientReady = true;
       this.io?.emit("clientReady", true);
 
+      // Load profile data
+      try {
+        this.profileData = await this.loadProfileInfo();
+        this.io?.emit("profileLoaded", this.profileData);
+      } catch (error) {
+        console.error("Error loading profile:", error);
+      }
+
       // Initialize contact cache in background for faster message processing
       setTimeout(async () => {
         await contactCache.initialize(this);
@@ -46,6 +55,7 @@ class WhatsAppService {
     this.client.on("disconnected", (reason) => {
       console.log("🔴 WhatsApp disconnected:", reason);
       this.isClientReady = false;
+      this.profileData = null;
       this.io?.emit("clientDisconnected", reason);
     });
   }
@@ -94,6 +104,71 @@ class WhatsAppService {
 
   isReady() {
     return this.isClientReady;
+  }
+
+  async loadProfileInfo() {
+    if (!this.isClientReady) {
+      throw new Error("Client not ready");
+    }
+
+    try {
+      // Get contact info (our own info)
+      const contact = await this.client.getContactById(this.client.info.wid._serialized);
+
+      let profilePic = null;
+      try {
+        profilePic = await this.client.getProfilePicUrl(this.client.info.wid._serialized);
+      } catch (error) {
+        console.log("No profile picture available");
+      }
+
+      this.profileData = {
+        name: contact.name || contact.pushname || "غير محدد",
+        number: this.client.info.wid.user,
+        about: contact.statusMessage || null,
+        profilePic: profilePic,
+        isReady: true
+      };
+
+      return this.profileData;
+    } catch (error) {
+      console.error("Error loading profile info:", error);
+      throw error;
+    }
+  }
+
+  async getProfileInfo() {
+    if (this.profileData && this.isClientReady) {
+      return this.profileData;
+    }
+
+    if (this.isClientReady) {
+      return await this.loadProfileInfo();
+    }
+
+    throw new Error("Client not ready");
+  }
+
+  getProfileData() {
+    return this.profileData;
+  }
+
+  async disconnect() {
+    try {
+      if (this.client) {
+        await this.client.destroy();
+        this.client = null;
+      }
+      this.isClientReady = false;
+      this.profileData = null;
+
+      if (this.io) {
+        this.io.emit('clientDisconnected', 'Manual disconnection');
+      }
+    } catch (error) {
+      console.error('Error during disconnect:', error);
+      throw error;
+    }
   }
 }
 
