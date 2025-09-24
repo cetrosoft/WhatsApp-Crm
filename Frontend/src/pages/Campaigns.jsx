@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
-import { User, Wifi, AlertCircle, Send, BarChart3, Users, Target, CheckCircle2, MessageSquare } from "lucide-react";
+import { User, Wifi, AlertCircle, Send, BarChart3, Users, Target, CheckCircle2, MessageSquare, Upload, FileText, Plus, X } from "lucide-react";
 
 import MessageForm from "../components/MessageForm";
 import ContactsList from "../components/ContactsList";
@@ -22,6 +22,10 @@ export default function Campaigns() {
 
   // Tab management
   const [activeTab, setActiveTab] = useState("campaign");
+
+  // CSV Import functionality (NEW - keeps existing functionality intact)
+  const [csvImportedContacts, setCsvImportedContacts] = useState([]);
+  const [showCsvImport, setShowCsvImport] = useState(false);
 
   // Tab configuration
   const tabs = [
@@ -124,15 +128,18 @@ export default function Campaigns() {
     }
   };
 
-  // إرسال الرسائل (مع Pause/Resume)
+  // إرسال الرسائل (مع Pause/Resume) - Enhanced with CSV support
   const sendMessages = async () => {
     if (!isConnected) {
       toast.error("يرجى الاتصال بواتساب أولاً!");
       return;
     }
 
-    if (selectedChats.length === 0) {
-      toast.error("اختر الأفراد أو الجروبات أولاً!");
+    // Combine both WhatsApp selected chats and CSV imported contacts
+    const totalRecipients = [...selectedChats, ...csvImportedContacts.map(c => c.id)];
+
+    if (totalRecipients.length === 0) {
+      toast.error("اختر الأفراد أو الجروبات أو استورد قائمة CSV أولاً!");
       return;
     }
 
@@ -140,7 +147,13 @@ export default function Campaigns() {
     setIsPaused(false);
     setLoading(true);
 
-    for (let i = currentIndex; i < selectedChats.length; i++) {
+    // Create combined recipients list with proper chat objects
+    const allRecipients = [
+      ...selectedChats.map(id => allChats.find(c => c.id === id)).filter(Boolean),
+      ...csvImportedContacts
+    ];
+
+    for (let i = currentIndex; i < allRecipients.length; i++) {
       if (isPaused) {
         setCurrentIndex(i); // نحفظ مكان التوقف
         toast("⏸️ تم إيقاف الإرسال مؤقتًا");
@@ -148,8 +161,7 @@ export default function Campaigns() {
         return;
       }
 
-      const id = selectedChats[i];
-      const chat = allChats.find((c) => c.id === id);
+      const chat = allRecipients[i];
 
       // إعداد البيانات
       const formData = new FormData();
@@ -157,10 +169,18 @@ export default function Campaigns() {
       formData.append("delayMin", delayMin);
       formData.append("delayMax", delayMax);
       if (imageFile) formData.append("image", imageFile);
-      if (chat.isGroup) {
-        formData.append("groups[]", id);
+
+      // Handle both WhatsApp contacts and CSV contacts
+      if (chat.source === 'csv') {
+        // For CSV contacts, use the number directly
+        formData.append("numbers[]", chat.number);
       } else {
-        formData.append("numbers[]", id);
+        // For WhatsApp contacts, use existing logic
+        if (chat.isGroup) {
+          formData.append("groups[]", chat.id);
+        } else {
+          formData.append("numbers[]", chat.id);
+        }
       }
 
       try {
@@ -265,6 +285,220 @@ export default function Campaigns() {
             >
               مسح الكل
             </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // CSV Import Component (NEW - Addition Only)
+  const CsvImportPanel = () => {
+    const [csvFile, setCsvFile] = useState(null);
+    const [previewContacts, setPreviewContacts] = useState([]);
+    const [isProcessing, setIsProcessing] = useState(false);
+
+    const handleCsvUpload = async (event) => {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      if (!file.name.toLowerCase().endsWith('.csv')) {
+        toast.error('يرجى اختيار ملف CSV فقط');
+        return;
+      }
+
+      setCsvFile(file);
+      setIsProcessing(true);
+
+      try {
+        const text = await file.text();
+        const lines = text.split('\n').filter(line => line.trim());
+
+        if (lines.length < 2) {
+          toast.error('ملف CSV يجب أن يحتوي على عنوان وصف واحد على الأقل');
+          return;
+        }
+
+        const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+        const contacts = [];
+
+        for (let i = 1; i < lines.length; i++) {
+          const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
+
+          if (values.length >= 2 && values[0] && values[1]) {
+            contacts.push({
+              id: `csv_${Date.now()}_${i}`,
+              name: values[0] || `Contact ${i}`,
+              number: values[1],
+              type: values[2] || 'Contact',
+              isGroup: (values[3] || '').toLowerCase() === 'yes',
+              source: 'csv'
+            });
+          }
+        }
+
+        setPreviewContacts(contacts);
+        toast.success(`تم العثور على ${contacts.length} جهة اتصال في الملف`);
+      } catch (error) {
+        console.error('CSV processing error:', error);
+        toast.error('خطأ في معالجة ملف CSV');
+      } finally {
+        setIsProcessing(false);
+      }
+    };
+
+    const addCsvContactsToCampaign = () => {
+      setCsvImportedContacts(prev => [...prev, ...previewContacts]);
+      setPreviewContacts([]);
+      setCsvFile(null);
+      setShowCsvImport(false);
+      toast.success(`تم إضافة ${previewContacts.length} جهة اتصال للحملة`);
+    };
+
+    const removeCsvContact = (id) => {
+      setCsvImportedContacts(prev => prev.filter(contact => contact.id !== id));
+    };
+
+    const clearAllCsvContacts = () => {
+      setCsvImportedContacts([]);
+      toast.success('تم حذف جميع جهات الاتصال المستوردة');
+    };
+
+    return (
+      <div className="space-y-4">
+        {/* CSV Import Toggle Button */}
+        <div className="flex justify-between items-center">
+          <h4 className="text-sm font-medium text-gray-700">استيراد قائمة مخصصة (CSV)</h4>
+          <button
+            onClick={() => setShowCsvImport(!showCsvImport)}
+            className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center gap-1"
+          >
+            <Plus className="h-3 w-3" />
+            استيراد CSV
+          </button>
+        </div>
+
+        {/* CSV Import Panel */}
+        {showCsvImport && (
+          <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+            <div className="space-y-4">
+              <div className="flex gap-2">
+                <label className="px-3 py-2 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 cursor-pointer flex items-center gap-1">
+                  <Upload className="h-3 w-3" />
+                  اختيار ملف CSV
+                  <input
+                    type="file"
+                    accept=".csv"
+                    onChange={handleCsvUpload}
+                    className="hidden"
+                    disabled={isProcessing}
+                  />
+                </label>
+
+                <button
+                  onClick={async () => {
+                    try {
+                      const response = await fetch('http://localhost:5000/import-template');
+                      const blob = await response.blob();
+                      const url = window.URL.createObjectURL(blob);
+                      const link = document.createElement('a');
+                      link.href = url;
+                      link.download = 'contacts_template.csv';
+                      link.click();
+                      window.URL.revokeObjectURL(url);
+                      toast.success('تم تحميل النموذج');
+                    } catch (error) {
+                      toast.error('فشل في تحميل النموذج');
+                    }
+                  }}
+                  className="px-3 py-2 bg-gray-500 text-white text-sm rounded hover:bg-gray-600 flex items-center gap-1"
+                >
+                  <FileText className="h-3 w-3" />
+                  تحميل النموذج
+                </button>
+              </div>
+
+              {isProcessing && (
+                <div className="text-sm text-blue-600 flex items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                  جاري معالجة الملف...
+                </div>
+              )}
+
+              {previewContacts.length > 0 && (
+                <div className="space-y-3">
+                  <h5 className="font-medium text-gray-800">معاينة جهات الاتصال ({previewContacts.length})</h5>
+                  <div className="max-h-40 overflow-y-auto bg-white rounded border">
+                    {previewContacts.slice(0, 10).map(contact => (
+                      <div key={contact.id} className="flex items-center justify-between p-2 border-b text-sm">
+                        <div>
+                          <span className="font-medium">{contact.name}</span>
+                          <span className="text-gray-500 ml-2">{contact.number}</span>
+                        </div>
+                        <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">CSV</span>
+                      </div>
+                    ))}
+                    {previewContacts.length > 10 && (
+                      <div className="p-2 text-center text-gray-500 text-sm">
+                        ... و {previewContacts.length - 10} جهة اتصال أخرى
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={addCsvContactsToCampaign}
+                      className="px-4 py-2 bg-green-500 text-white text-sm rounded hover:bg-green-600"
+                    >
+                      إضافة للحملة
+                    </button>
+                    <button
+                      onClick={() => {
+                        setPreviewContacts([]);
+                        setCsvFile(null);
+                        setShowCsvImport(false);
+                      }}
+                      className="px-4 py-2 bg-gray-400 text-white text-sm rounded hover:bg-gray-500"
+                    >
+                      إلغاء
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Display CSV Imported Contacts */}
+        {csvImportedContacts.length > 0 && (
+          <div className="bg-yellow-50 rounded-lg p-4 border border-yellow-200">
+            <div className="flex justify-between items-center mb-3">
+              <h5 className="font-medium text-gray-800 flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                جهات الاتصال المستوردة ({csvImportedContacts.length})
+              </h5>
+              <button
+                onClick={clearAllCsvContacts}
+                className="text-red-600 hover:text-red-800 text-sm"
+              >
+                حذف الكل
+              </button>
+            </div>
+            <div className="space-y-2 max-h-32 overflow-y-auto">
+              {csvImportedContacts.map(contact => (
+                <div key={contact.id} className="flex items-center justify-between p-2 bg-white rounded text-sm">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">CSV</span>
+                    <span className="font-medium">{contact.name}</span>
+                    <span className="text-gray-500">{contact.number}</span>
+                  </div>
+                  <button
+                    onClick={() => removeCsvContact(contact.id)}
+                    className="text-red-500 hover:text-red-700"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>
@@ -412,21 +646,35 @@ export default function Campaigns() {
                 {/* Step 2: Review Selected Contacts (Left Column) */}
                 <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6 border border-green-200 shadow-lg">
                   <div className="flex items-center gap-3 mb-6">
-                    <div className={`flex items-center justify-center w-10 h-10 ${selectedChats.length > 0 ? 'bg-green-500 text-white' : 'bg-gray-300 text-gray-500'} rounded-full font-bold text-lg`}>
+                    <div className={`flex items-center justify-center w-10 h-10 ${(selectedChats.length > 0 || csvImportedContacts.length > 0) ? 'bg-green-500 text-white' : 'bg-gray-300 text-gray-500'} rounded-full font-bold text-lg`}>
                       2
                     </div>
                     <div className="flex items-center gap-2">
-                      <CheckCircle2 className={`h-6 w-6 ${selectedChats.length > 0 ? 'text-green-600' : 'text-gray-400'}`} />
-                      <h3 className={`text-xl font-bold ${selectedChats.length > 0 ? 'text-gray-900' : 'text-gray-500'}`}>
+                      <CheckCircle2 className={`h-6 w-6 ${(selectedChats.length > 0 || csvImportedContacts.length > 0) ? 'text-green-600' : 'text-gray-400'}`} />
+                      <h3 className={`text-xl font-bold ${(selectedChats.length > 0 || csvImportedContacts.length > 0) ? 'text-gray-900' : 'text-gray-500'}`}>
                         الخطوة الثانية: مراجعة المحدد
                       </h3>
                     </div>
                     <div className="flex-1 h-1 bg-green-200 rounded-full mx-4">
-                      <div className={`h-full bg-green-500 rounded-full transition-all duration-300 ${selectedChats.length > 0 ? 'w-full' : 'w-0'}`}></div>
+                      <div className={`h-full bg-green-500 rounded-full transition-all duration-300 ${(selectedChats.length > 0 || csvImportedContacts.length > 0) ? 'w-full' : 'w-0'}`}></div>
                     </div>
                   </div>
 
-                  <div className="bg-white rounded-lg p-4 shadow-sm">
+                  <div className="bg-white rounded-lg p-4 shadow-sm space-y-6">
+                    {/* NEW: CSV Import Panel */}
+                    <CsvImportPanel />
+
+                    {/* Separator */}
+                    {csvImportedContacts.length > 0 && (
+                      <div className="border-t border-gray-200 pt-4">
+                        <h5 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+                          <User className="h-4 w-4" />
+                          المحدد من الواتساب
+                        </h5>
+                      </div>
+                    )}
+
+                    {/* EXISTING: Selected Contacts Preview (unchanged) */}
                     <SelectedContactsPreview />
                   </div>
                 </div>
@@ -434,19 +682,19 @@ export default function Campaigns() {
                 {/* Step 3: Compose and Send (Right Column) */}
                 <div className="bg-gradient-to-r from-orange-50 to-yellow-50 rounded-xl p-6 border border-orange-200 shadow-lg">
                   <div className="flex items-center gap-3 mb-6">
-                    <div className={`flex items-center justify-center w-10 h-10 ${selectedChats.length > 0 && message.trim() ? 'bg-orange-500 text-white' : 'bg-gray-300 text-gray-500'} rounded-full font-bold text-lg`}>
+                    <div className={`flex items-center justify-center w-10 h-10 ${(selectedChats.length > 0 || csvImportedContacts.length > 0) && message.trim() ? 'bg-orange-500 text-white' : 'bg-gray-300 text-gray-500'} rounded-full font-bold text-lg`}>
                       3
                     </div>
                     <div className="flex items-center gap-2">
-                      <MessageSquare className={`h-6 w-6 ${selectedChats.length > 0 && message.trim() ? 'text-orange-600' : 'text-gray-400'}`} />
-                      <h3 className={`text-xl font-bold ${selectedChats.length > 0 && message.trim() ? 'text-gray-900' : 'text-gray-500'}`}>
+                      <MessageSquare className={`h-6 w-6 ${(selectedChats.length > 0 || csvImportedContacts.length > 0) && message.trim() ? 'text-orange-600' : 'text-gray-400'}`} />
+                      <h3 className={`text-xl font-bold ${(selectedChats.length > 0 || csvImportedContacts.length > 0) && message.trim() ? 'text-gray-900' : 'text-gray-500'}`}>
                         الخطوة الثالثة: إنشاء وإرسال
                       </h3>
                     </div>
                     <div className="flex-1 h-1 bg-orange-200 rounded-full mx-4">
-                      <div className={`h-full bg-orange-500 rounded-full transition-all duration-300 ${selectedChats.length > 0 && message.trim() ? 'w-full' : 'w-0'}`}></div>
+                      <div className={`h-full bg-orange-500 rounded-full transition-all duration-300 ${(selectedChats.length > 0 || csvImportedContacts.length > 0) && message.trim() ? 'w-full' : 'w-0'}`}></div>
                     </div>
-                    {selectedChats.length > 0 && message.trim() && (
+                    {(selectedChats.length > 0 || csvImportedContacts.length > 0) && message.trim() && (
                       <CheckCircle2 className="h-6 w-6 text-green-600" />
                     )}
                   </div>
@@ -467,7 +715,7 @@ export default function Campaigns() {
                       isPaused={isPaused}
                       isRunning={isRunning}
                       loading={loading}
-                      disabled={!isConnected || selectedChats.length === 0}
+                      disabled={!isConnected || (selectedChats.length === 0 && csvImportedContacts.length === 0)}
                     />
                   </div>
                 </div>
@@ -476,16 +724,23 @@ export default function Campaigns() {
               {/* Workflow Progress Indicator */}
               <div className="bg-gray-50 rounded-lg p-4 border">
                 <div className="flex items-center justify-center gap-8 text-sm">
-                  <div className={`flex items-center gap-2 ${selectedChats.length > 0 ? 'text-green-600' : 'text-gray-400'}`}>
-                    <div className={`w-3 h-3 rounded-full ${selectedChats.length > 0 ? 'bg-green-500' : 'bg-gray-300'}`}></div>
-                    <span className="font-medium">تم اختيار {selectedChats.length} جهة اتصال</span>
+                  <div className={`flex items-center gap-2 ${(selectedChats.length > 0 || csvImportedContacts.length > 0) ? 'text-green-600' : 'text-gray-400'}`}>
+                    <div className={`w-3 h-3 rounded-full ${(selectedChats.length > 0 || csvImportedContacts.length > 0) ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                    <span className="font-medium">
+                      تم اختيار {selectedChats.length + csvImportedContacts.length} جهة اتصال
+                      {csvImportedContacts.length > 0 && (
+                        <span className="text-xs text-blue-600 ml-1">
+                          ({selectedChats.length} واتساب + {csvImportedContacts.length} CSV)
+                        </span>
+                      )}
+                    </span>
                   </div>
                   <div className={`flex items-center gap-2 ${message.trim() ? 'text-green-600' : 'text-gray-400'}`}>
                     <div className={`w-3 h-3 rounded-full ${message.trim() ? 'bg-green-500' : 'bg-gray-300'}`}></div>
                     <span className="font-medium">تم كتابة الرسالة</span>
                   </div>
-                  <div className={`flex items-center gap-2 ${selectedChats.length > 0 && message.trim() ? 'text-green-600' : 'text-gray-400'}`}>
-                    <div className={`w-3 h-3 rounded-full ${selectedChats.length > 0 && message.trim() ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                  <div className={`flex items-center gap-2 ${(selectedChats.length > 0 || csvImportedContacts.length > 0) && message.trim() ? 'text-green-600' : 'text-gray-400'}`}>
+                    <div className={`w-3 h-3 rounded-full ${(selectedChats.length > 0 || csvImportedContacts.length > 0) && message.trim() ? 'bg-green-500' : 'bg-gray-300'}`}></div>
                     <span className="font-medium">جاهز للإرسال</span>
                   </div>
                 </div>
