@@ -13,6 +13,7 @@ import { processIncomingMessage } from './controllers/messageController.js';
 import chatRoutes from './routes/chatRoutes.js';
 import messageRoutes from './routes/messageRoutes.js';
 import profileRoutes from './routes/profileRoutes.js';
+import exportRoutes from './routes/exportRoutes.js';
 
 const app = express();
 const server = createServer(app);
@@ -44,6 +45,7 @@ whatsappClient.getClient().on("message", (msg) => {
 app.use('/', chatRoutes);
 app.use('/', messageRoutes);
 app.use('/', profileRoutes);
+app.use('/', exportRoutes);
 
 // Start server
 server.listen(5000, () =>

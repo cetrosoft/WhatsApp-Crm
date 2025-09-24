@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
-import { User, Wifi, AlertCircle } from "lucide-react";
+import { User, Wifi, AlertCircle, Send, BarChart3, Users, Target, CheckCircle2, MessageSquare } from "lucide-react";
 
 import MessageForm from "../components/MessageForm";
 import ContactsList from "../components/ContactsList";
 import Logs from "../components/Logs";
 import PreviewModal from "../components/PreviewModal";
+import ExportImportToolbar from "../components/ExportImportToolbar";
 
 export default function Campaigns() {
   const [message, setMessage] = useState("");
@@ -18,6 +19,15 @@ export default function Campaigns() {
   const [profileData, setProfileData] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
   const [connectionLoading, setConnectionLoading] = useState(false);
+
+  // Tab management
+  const [activeTab, setActiveTab] = useState("campaign");
+
+  // Tab configuration
+  const tabs = [
+    { id: "campaign", label: "إعداد الحملة", icon: Send },
+    { id: "analytics", label: "السجل والإحصائيات", icon: BarChart3 }
+  ];
 
   // Delay Min + Max
   const [delayMin, setDelayMin] = useState(2000);
@@ -88,6 +98,13 @@ export default function Campaigns() {
   useEffect(() => {
     checkProfileAndConnection();
   }, []);
+
+  // Handle import success
+  const handleImportSuccess = (importData) => {
+    // Refresh the contacts list
+    checkProfileAndConnection();
+    toast.success(`تم استيراد ${importData.imported} جهة اتصال بنجاح`);
+  };
 
   // تبديل اختيار فردي
   const toggleChat = (id) => {
@@ -174,6 +191,86 @@ export default function Campaigns() {
     toast.success("🎉 انتهت الحملة بالكامل");
   };
 
+  // Selected Contacts Preview Component
+  const SelectedContactsPreview = () => {
+    const selectedContacts = selectedChats.map(id =>
+      allChats.find(chat => chat.id === id)
+    ).filter(Boolean);
+
+    const contactsCount = selectedContacts.filter(c => !c.isGroup).length;
+    const groupsCount = selectedContacts.filter(c => c.isGroup).length;
+
+    const removeFromSelection = (id) => {
+      setSelectedChats(prev => prev.filter(chatId => chatId !== id));
+    };
+
+    if (selectedContacts.length === 0) {
+      return (
+        <div className="bg-gray-50 rounded-lg p-4 text-center">
+          <User className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+          <p className="text-sm text-gray-500">لم يتم اختيار أي جهات اتصال</p>
+          <p className="text-xs text-gray-400">اختر جهات الاتصال أو المجموعات لبدء الحملة</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="bg-white rounded-lg p-4 shadow-sm border">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-medium text-gray-900">جهات الاتصال المحددة</h3>
+          <div className="flex gap-2">
+            <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+              {contactsCount} أفراد
+            </span>
+            <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+              {groupsCount} مجموعات
+            </span>
+          </div>
+        </div>
+
+        <div className="space-y-2 max-h-40 overflow-y-auto">
+          {selectedContacts.map(contact => (
+            <div
+              key={contact.id}
+              className="flex items-center justify-between p-2 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <div className={`w-2 h-2 rounded-full ${contact.isGroup ? 'bg-green-500' : 'bg-blue-500'}`}></div>
+                <div>
+                  <p className="font-medium text-sm">{contact.name}</p>
+                  <p className="text-xs text-gray-500">
+                    {contact.isGroup ? 'مجموعة' : 'فرد'} • {contact.number || 'بدون رقم'}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => removeFromSelection(contact.id)}
+                className="text-red-500 hover:text-red-700 text-sm"
+                title="إزالة من التحديد"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+
+        {selectedContacts.length > 0 && (
+          <div className="mt-3 pt-3 border-t flex justify-between items-center">
+            <span className="text-sm text-gray-600">
+              المجموع: {selectedContacts.length} محدد
+            </span>
+            <button
+              onClick={() => setSelectedChats([])}
+              className="text-sm text-red-600 hover:text-red-800"
+            >
+              مسح الكل
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6">
       {/* Profile and Connection Status */}
@@ -238,45 +335,196 @@ export default function Campaigns() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* الفورم + لست الكونتاكتس */}
-        <div className="space-y-6">
-          <MessageForm
-            message={message}
-            setMessage={setMessage}
-            imageFile={imageFile}
-            setImageFile={setImageFile}
-            delayMin={delayMin}
-            setDelayMin={setDelayMin}
-            delayMax={delayMax}
-            setDelayMax={setDelayMax}
-            onPreview={() => setShowPreview(true)}
-            onSend={sendMessages}
-            onPause={() => setIsPaused(true)}
-            isPaused={isPaused}
-            isRunning={isRunning}
-            loading={loading}
-            disabled={!isConnected}
-          />
-
-          <ContactsList
-            allChats={allChats}
-            selectedChats={selectedChats}
-            toggleChat={toggleChat}
-            toggleSelectAll={toggleSelectAll}
-            filter={filter}
-            setFilter={setFilter}
-            typeFilter={typeFilter}
-            setTypeFilter={setTypeFilter}
-            disabled={!isConnected}
-          />
+      {/* Tabbed Interface */}
+      <div className="bg-white rounded-lg shadow-sm border">
+        {/* Tab Headers */}
+        <div className="border-b border-gray-200">
+          <nav className="-mb-px flex" dir="rtl">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`py-4 px-6 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors ${
+                    activeTab === tab.id
+                      ? 'border-blue-500 text-blue-600 bg-blue-50'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  <Icon className="h-4 w-4" />
+                  {tab.label}
+                </button>
+              );
+            })}
+          </nav>
         </div>
 
-        {/* سجل الإرسال */}
-        <Logs log={log} allChats={allChats} />
+        {/* Tab Content */}
+        <div className="p-6">
+          {activeTab === "campaign" && (
+            <div className="space-y-8">
+              {/* Step 1: Contact Selection (Full Width Top) */}
+              <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-6 border border-blue-200 shadow-lg">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="flex items-center justify-center w-10 h-10 bg-blue-500 text-white rounded-full font-bold text-lg">
+                    1
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Target className="h-6 w-6 text-blue-600" />
+                    <h3 className="text-xl font-bold text-gray-900">الخطوة الأولى: اختيار جهات الاتصال</h3>
+                  </div>
+                  <div className="flex-1 h-1 bg-blue-200 rounded-full mx-4">
+                    <div className={`h-full bg-blue-500 rounded-full transition-all duration-300 ${selectedChats.length > 0 ? 'w-full' : 'w-0'}`}></div>
+                  </div>
+                  {selectedChats.length > 0 && (
+                    <CheckCircle2 className="h-6 w-6 text-green-600" />
+                  )}
+                </div>
+
+                <div className="bg-white rounded-lg p-6 shadow-sm">
+                  <div className="space-y-6">
+                    {/* Export/Import Toolbar */}
+                    <ExportImportToolbar
+                      selectedChats={selectedChats}
+                      allChats={allChats}
+                      onImportSuccess={handleImportSuccess}
+                    />
+
+                    {/* Contacts List */}
+                    <ContactsList
+                      allChats={allChats}
+                      selectedChats={selectedChats}
+                      toggleChat={toggleChat}
+                      toggleSelectAll={toggleSelectAll}
+                      filter={filter}
+                      setFilter={setFilter}
+                      typeFilter={typeFilter}
+                      setTypeFilter={setTypeFilter}
+                      disabled={!isConnected}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Steps 2 & 3: Review and Compose (2-Column Bottom) */}
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                {/* Step 2: Review Selected Contacts (Left Column) */}
+                <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6 border border-green-200 shadow-lg">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className={`flex items-center justify-center w-10 h-10 ${selectedChats.length > 0 ? 'bg-green-500 text-white' : 'bg-gray-300 text-gray-500'} rounded-full font-bold text-lg`}>
+                      2
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className={`h-6 w-6 ${selectedChats.length > 0 ? 'text-green-600' : 'text-gray-400'}`} />
+                      <h3 className={`text-xl font-bold ${selectedChats.length > 0 ? 'text-gray-900' : 'text-gray-500'}`}>
+                        الخطوة الثانية: مراجعة المحدد
+                      </h3>
+                    </div>
+                    <div className="flex-1 h-1 bg-green-200 rounded-full mx-4">
+                      <div className={`h-full bg-green-500 rounded-full transition-all duration-300 ${selectedChats.length > 0 ? 'w-full' : 'w-0'}`}></div>
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-lg p-4 shadow-sm">
+                    <SelectedContactsPreview />
+                  </div>
+                </div>
+
+                {/* Step 3: Compose and Send (Right Column) */}
+                <div className="bg-gradient-to-r from-orange-50 to-yellow-50 rounded-xl p-6 border border-orange-200 shadow-lg">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className={`flex items-center justify-center w-10 h-10 ${selectedChats.length > 0 && message.trim() ? 'bg-orange-500 text-white' : 'bg-gray-300 text-gray-500'} rounded-full font-bold text-lg`}>
+                      3
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <MessageSquare className={`h-6 w-6 ${selectedChats.length > 0 && message.trim() ? 'text-orange-600' : 'text-gray-400'}`} />
+                      <h3 className={`text-xl font-bold ${selectedChats.length > 0 && message.trim() ? 'text-gray-900' : 'text-gray-500'}`}>
+                        الخطوة الثالثة: إنشاء وإرسال
+                      </h3>
+                    </div>
+                    <div className="flex-1 h-1 bg-orange-200 rounded-full mx-4">
+                      <div className={`h-full bg-orange-500 rounded-full transition-all duration-300 ${selectedChats.length > 0 && message.trim() ? 'w-full' : 'w-0'}`}></div>
+                    </div>
+                    {selectedChats.length > 0 && message.trim() && (
+                      <CheckCircle2 className="h-6 w-6 text-green-600" />
+                    )}
+                  </div>
+
+                  <div className="bg-white rounded-lg p-4 shadow-sm">
+                    <MessageForm
+                      message={message}
+                      setMessage={setMessage}
+                      imageFile={imageFile}
+                      setImageFile={setImageFile}
+                      delayMin={delayMin}
+                      setDelayMin={setDelayMin}
+                      delayMax={delayMax}
+                      setDelayMax={setDelayMax}
+                      onPreview={() => setShowPreview(true)}
+                      onSend={sendMessages}
+                      onPause={() => setIsPaused(true)}
+                      isPaused={isPaused}
+                      isRunning={isRunning}
+                      loading={loading}
+                      disabled={!isConnected || selectedChats.length === 0}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Workflow Progress Indicator */}
+              <div className="bg-gray-50 rounded-lg p-4 border">
+                <div className="flex items-center justify-center gap-8 text-sm">
+                  <div className={`flex items-center gap-2 ${selectedChats.length > 0 ? 'text-green-600' : 'text-gray-400'}`}>
+                    <div className={`w-3 h-3 rounded-full ${selectedChats.length > 0 ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                    <span className="font-medium">تم اختيار {selectedChats.length} جهة اتصال</span>
+                  </div>
+                  <div className={`flex items-center gap-2 ${message.trim() ? 'text-green-600' : 'text-gray-400'}`}>
+                    <div className={`w-3 h-3 rounded-full ${message.trim() ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                    <span className="font-medium">تم كتابة الرسالة</span>
+                  </div>
+                  <div className={`flex items-center gap-2 ${selectedChats.length > 0 && message.trim() ? 'text-green-600' : 'text-gray-400'}`}>
+                    <div className={`w-3 h-3 rounded-full ${selectedChats.length > 0 && message.trim() ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                    <span className="font-medium">جاهز للإرسال</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "analytics" && (
+            <div className="space-y-6">
+              {/* Enhanced Logs Section */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Campaign Statistics */}
+                <div className="lg:col-span-1 space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900">إحصائيات الحملة</h3>
+                  <div className="bg-blue-50 rounded-lg p-4">
+                    <div className="text-2xl font-bold text-blue-600">{log.filter(l => l.success).length}</div>
+                    <div className="text-sm text-blue-800">رسائل مرسلة بنجاح</div>
+                  </div>
+                  <div className="bg-red-50 rounded-lg p-4">
+                    <div className="text-2xl font-bold text-red-600">{log.filter(l => !l.success).length}</div>
+                    <div className="text-sm text-red-800">رسائل فاشلة</div>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="text-2xl font-bold text-gray-600">{log.length}</div>
+                    <div className="text-sm text-gray-800">إجمالي المحاولات</div>
+                  </div>
+                </div>
+
+                {/* Detailed Logs */}
+                <div className="lg:col-span-2">
+                  <Logs log={log} allChats={allChats} />
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* نافذة المعاينة */}
+      {/* Preview Modal */}
       <PreviewModal
         show={showPreview}
         onClose={() => setShowPreview(false)}
