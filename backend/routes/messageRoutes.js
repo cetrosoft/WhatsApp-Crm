@@ -2,6 +2,7 @@ import express from 'express';
 import whatsappClient from '../services/whatsappClient.js';
 import conversationStore from '../services/conversationStore.js';
 import chatCache from '../services/chatCache.js';
+import campaignManager from '../services/campaignManager.js';
 import { delay, getRandomDelay, getTime } from '../utils/delay.js';
 import pkg from "whatsapp-web.js";
 import fetch from 'node-fetch';
@@ -94,7 +95,7 @@ router.post("/reply", async (req, res) => {
   }
 });
 
-// API: إرسال الرسائل (حملات)
+// API: إرسال الرسائل (حملات) - Updated with campaign management
 router.post("/send", async (req, res) => {
   try {
     if (!whatsappClient.isReady()) {
@@ -104,105 +105,245 @@ router.post("/send", async (req, res) => {
     const message = req.body.message || "";
     const rawNumbers = req.body["numbers[]"] || [];
     const rawGroups = req.body["groups[]"] || [];
-
     const delayMin = parseInt(req.body.delayMin) || 2000;
     const delayMax = parseInt(req.body.delayMax) || 5000;
 
-    let results = [];
     const numbers = Array.isArray(rawNumbers) ? rawNumbers : [rawNumbers];
     const groups = Array.isArray(rawGroups) ? rawGroups : [rawGroups];
 
-    // إرسال للأفراد
-    for (let n of numbers) {
-      if (!n) continue;
-      try {
-        const chatId = n.includes("@c.us") ? n : `${n}@c.us`;
-        console.log(`📤 Sending to individual: ${chatId}`);
+    // Start new campaign
+    const campaignData = {
+      message,
+      numbers: numbers.filter(n => n),
+      groups: groups.filter(g => g),
+      delayMin,
+      delayMax,
+      files: req.files
+    };
 
-        if (req.files && req.files.image) {
-          // Preserve Arabic filename properly
-          let filename = req.files.image.name;
-          if (filename && Buffer.isBuffer(filename)) {
-            filename = filename.toString('utf8');
-          }
+    const campaignId = campaignManager.startCampaign(campaignData);
 
-          const media = new MessageMedia(
-            req.files.image.mimetype,
-            req.files.image.data.toString("base64"),
-            filename
-          );
-          await whatsappClient.sendMessage(chatId, message, {
-            mimetype: media.mimetype,
-            data: media.data,
-            filename: media.filename
-          });
-        } else {
-          await whatsappClient.sendMessage(chatId, message);
-        }
+    // Start campaign execution in background
+    processCampaign(campaignId, req.io);
 
-        results.push({
-          target: n,
-          type: "individual",
-          status: "تم الإرسال",
-          time: getTime(),
-        });
-        console.log(`✅ Sent to ${chatId}`);
-
-        const randomDelay = getRandomDelay(delayMin, delayMax);
-        await delay(randomDelay);
-      } catch (err) {
-        console.error(`⛔ Send Error for ${n}:`, err.message);
-        results.push({ target: n, type: "individual", status: "فشل" });
-      }
-    }
-
-    // إرسال للجروبات
-    for (let g of groups) {
-      if (!g) continue;
-      try {
-        console.log(`📤 Sending to group: ${g}`);
-
-        if (req.files && req.files.image) {
-          // Preserve Arabic filename properly
-          let filename = req.files.image.name;
-          if (filename && Buffer.isBuffer(filename)) {
-            filename = filename.toString('utf8');
-          }
-
-          const media = new MessageMedia(
-            req.files.image.mimetype,
-            req.files.image.data.toString("base64"),
-            filename
-          );
-          await whatsappClient.sendMessage(g, message, {
-            mimetype: media.mimetype,
-            data: media.data,
-            filename: media.filename
-          });
-        } else {
-          await whatsappClient.sendMessage(g, message);
-        }
-
-        results.push({
-          target: g,
-          type: "group",
-          status: "تم الإرسال",
-          time: getTime(),
-        });
-        console.log(`✅ Sent to group ${g}`);
-
-        const randomDelay = getRandomDelay(delayMin, delayMax);
-        await delay(randomDelay);
-      } catch (err) {
-        console.error(`⛔ Send Error for ${g}:`, err.message);
-        results.push({ target: g, type: "group", status: "فشل", time: getTime() });
-      }
-    }
-
-    res.json({ results });
+    res.json({
+      success: true,
+      campaignId,
+      message: "Campaign started successfully"
+    });
   } catch (err) {
     console.error("⛔ Send Error:", err.message);
     res.status(500).json({ error: err.message });
+  }
+});
+
+// Process campaign in background with pause support
+async function processCampaign(campaignId, io) {
+  const campaign = campaignManager.getCampaign(campaignId);
+  if (!campaign) return;
+
+  const { message, numbers, groups, delayMin, delayMax, files } = campaign.data;
+  const allTargets = [
+    ...numbers.map(n => ({ id: n, type: 'individual' })),
+    ...groups.map(g => ({ id: g, type: 'group' }))
+  ];
+
+  for (let i = campaign.currentIndex; i < allTargets.length; i++) {
+    // Check if campaign is paused or stopped
+    const currentCampaign = campaignManager.getCampaign(campaignId);
+    if (!currentCampaign || currentCampaign.status === 'stopped') {
+      console.log(`🛑 Campaign ${campaignId} stopped`);
+      return;
+    }
+
+    if (currentCampaign.status === 'paused') {
+      console.log(`⏸️ Campaign ${campaignId} paused at index ${i}`);
+      campaignManager.updateCampaignProgress(campaignId, i);
+
+      // Wait for resume
+      while (true) {
+        await delay(1000);
+        const checkCampaign = campaignManager.getCampaign(campaignId);
+        if (!checkCampaign || checkCampaign.status === 'stopped') {
+          console.log(`🛑 Campaign ${campaignId} stopped during pause`);
+          return;
+        }
+        if (checkCampaign.status === 'running') {
+          console.log(`▶️ Campaign ${campaignId} resumed from index ${i}`);
+          break;
+        }
+        // Continue waiting if still paused
+      }
+    }
+
+    const target = allTargets[i];
+    let result = {
+      target: target.id,
+      type: target.type,
+      status: "فشل",
+      time: getTime(),
+      success: false
+    };
+
+    try {
+      const chatId = target.type === 'individual'
+        ? (target.id.includes("@c.us") ? target.id : `${target.id}@c.us`)
+        : target.id;
+
+      console.log(`📤 Sending to ${target.type}: ${chatId}`);
+
+      if (files && files.image) {
+        let filename = files.image.name;
+        if (filename && Buffer.isBuffer(filename)) {
+          filename = filename.toString('utf8');
+        }
+
+        const media = new MessageMedia(
+          files.image.mimetype,
+          files.image.data.toString("base64"),
+          filename
+        );
+        await whatsappClient.sendMessage(chatId, message, {
+          mimetype: media.mimetype,
+          data: media.data,
+          filename: media.filename
+        });
+      } else {
+        await whatsappClient.sendMessage(chatId, message);
+      }
+
+      result = {
+        target: target.id,
+        type: target.type,
+        status: "تم الإرسال",
+        time: getTime(),
+        success: true
+      };
+
+      console.log(`✅ Sent to ${chatId}`);
+    } catch (err) {
+      console.error(`⛔ Send Error for ${target.id}:`, err.message);
+      result.error = err.message;
+    }
+
+    // Update campaign progress
+    campaignManager.updateCampaignProgress(campaignId, i + 1, result);
+
+    // Get updated campaign for results
+    const updatedCampaign = campaignManager.getCampaign(campaignId);
+
+    // Emit progress update
+    io?.emit("campaignProgress", {
+      campaignId,
+      currentIndex: i + 1,
+      total: allTargets.length,
+      result,
+      results: updatedCampaign?.results || []
+    });
+
+    // Random delay between messages
+    if (i < allTargets.length - 1) {
+      const randomDelay = getRandomDelay(delayMin, delayMax);
+      await delay(randomDelay);
+    }
+  }
+
+  // Mark campaign as completed
+  campaignManager.completeCampaign(campaignId);
+  const finalCampaign = campaignManager.getCampaign(campaignId);
+  io?.emit("campaignCompleted", {
+    campaignId,
+    results: finalCampaign?.results || []
+  });
+
+  console.log(`🎉 Campaign ${campaignId} completed`);
+}
+
+// API: Pause campaign
+router.post("/campaign/:id/pause", async (req, res) => {
+  try {
+    console.log("🔍 Backend: Received pause request for campaign:", req.params.id);
+    const campaignId = parseInt(req.params.id);
+    console.log("🔍 Backend: Parsed campaign ID:", campaignId);
+
+    const success = campaignManager.pauseCampaign(campaignId);
+    console.log("🔍 Backend: Pause result:", success);
+
+    if (success) {
+      console.log("📡 Backend: Emitting campaignPaused event for campaign:", campaignId);
+      req.io?.emit("campaignPaused", { campaignId });
+      res.json({ success: true, message: "Campaign paused successfully" });
+    } else {
+      console.log("❌ Backend: Failed to pause campaign");
+      res.status(404).json({ success: false, error: "Campaign not found or already paused/stopped" });
+    }
+  } catch (err) {
+    console.error("⛔ Pause campaign error:", err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// API: Resume campaign
+router.post("/campaign/:id/resume", async (req, res) => {
+  try {
+    const campaignId = parseInt(req.params.id);
+    const success = campaignManager.resumeCampaign(campaignId);
+
+    if (success) {
+      req.io?.emit("campaignResumed", { campaignId });
+      res.json({ success: true, message: "Campaign resumed successfully" });
+    } else {
+      res.status(404).json({ success: false, error: "Campaign not found or not paused" });
+    }
+  } catch (err) {
+    console.error("⛔ Resume campaign error:", err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// API: Stop campaign
+router.post("/campaign/:id/stop", async (req, res) => {
+  try {
+    const campaignId = parseInt(req.params.id);
+    const success = campaignManager.stopCampaign(campaignId);
+
+    if (success) {
+      req.io?.emit("campaignStopped", { campaignId });
+      res.json({ success: true, message: "Campaign stopped successfully" });
+    } else {
+      res.status(404).json({ success: false, error: "Campaign not found" });
+    }
+  } catch (err) {
+    console.error("⛔ Stop campaign error:", err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// API: Get campaign status
+router.get("/campaign/:id/status", async (req, res) => {
+  try {
+    const campaignId = parseInt(req.params.id);
+    const campaign = campaignManager.getCampaign(campaignId);
+
+    if (campaign) {
+      res.json({
+        success: true,
+        campaign: {
+          id: campaign.id,
+          status: campaign.status,
+          currentIndex: campaign.currentIndex,
+          totalTargets: campaign.data.numbers.length + campaign.data.groups.length,
+          results: campaign.results,
+          createdAt: campaign.createdAt,
+          pausedAt: campaign.pausedAt
+        }
+      });
+    } else {
+      res.status(404).json({ success: false, error: "Campaign not found" });
+    }
+  } catch (err) {
+    console.error("⛔ Get campaign status error:", err.message);
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 
@@ -286,10 +427,13 @@ router.post("/forward", async (req, res) => {
           forwardedText = `🔄 رسالة محولة\n\n${forwardedText || ''}`;
         }
 
+        // Get the target chat object
+        const targetChat = await chatCache.getChat(whatsappClient, targetChatId);
+
         // Forward via WhatsApp
-        if (originalMessage.media && originalMessage.media.data) {
+        if (originalMessage.media && originalMessage.media.data && !originalMessage.media.error) {
           try {
-            // Validate base64 data before creating MessageMedia
+            // Get base64 data
             let base64Data = originalMessage.media.data;
 
             // Remove data URL prefix if present (data:image/jpeg;base64,...)
@@ -297,34 +441,61 @@ router.post("/forward", async (req, res) => {
               base64Data = base64Data.split(',')[1];
             }
 
-            // Validate base64 format
-            const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
-            if (!base64Regex.test(base64Data)) {
-              throw new Error('Invalid base64 format');
+            // Sanitize base64 string
+            // 1. Remove all whitespace, newlines, and tabs
+            base64Data = base64Data.replace(/[\s\n\r\t]/g, '');
+
+            // 2. Remove any non-base64 characters (keep only A-Z, a-z, 0-9, +, /, =)
+            base64Data = base64Data.replace(/[^A-Za-z0-9+/=]/g, '');
+
+            // 3. Fix padding - base64 length should be multiple of 4
+            const paddingNeeded = (4 - (base64Data.length % 4)) % 4;
+            if (paddingNeeded > 0) {
+              base64Data += '='.repeat(paddingNeeded);
             }
 
-            // Test decode to ensure it's valid
-            Buffer.from(base64Data, 'base64');
+            // Validate that we have mimetype and data
+            if (!originalMessage.media.mimetype || !base64Data || base64Data.length < 10) {
+              throw new Error('Missing or invalid mimetype/data');
+            }
 
+            // Test decode to ensure validity
+            try {
+              Buffer.from(base64Data, 'base64');
+            } catch (decodeError) {
+              throw new Error(`Invalid base64: ${decodeError.message}`);
+            }
+
+            // Create MessageMedia object
             const mediaData = new MessageMedia(
               originalMessage.media.mimetype,
               base64Data,
-              originalMessage.media.filename
+              originalMessage.media.filename || 'attachment'
             );
 
+            // Send media with or without caption using chat.sendMessage (like reply endpoint)
             if (forwardedText.trim()) {
-              await whatsappClient.sendMessage(targetChatId, mediaData, { caption: forwardedText });
+              await targetChat.sendMessage(mediaData, { caption: forwardedText });
             } else {
-              await whatsappClient.sendMessage(targetChatId, mediaData);
+              await targetChat.sendMessage(mediaData);
             }
+
+            console.log(`✅ Media forwarded successfully to ${targetChatId}`);
           } catch (mediaError) {
             console.error(`⛔ Media forward error for ${targetChatId}:`, mediaError.message);
+            console.error(`⛔ Media details:`, {
+              hasMimetype: !!originalMessage.media.mimetype,
+              hasData: !!originalMessage.media.data,
+              dataLength: originalMessage.media.data?.length || 0,
+              dataPreview: originalMessage.media.data?.substring(0, 100),
+              filename: originalMessage.media.filename
+            });
             // Fallback: send only text if media fails
-            await whatsappClient.sendMessage(targetChatId, forwardedText + '\n\n[تعذر إرسال المرفق]');
+            await targetChat.sendMessage(forwardedText + '\n\n[تعذر إرسال المرفق]');
           }
         } else {
           // Forward text only
-          await whatsappClient.sendMessage(targetChatId, forwardedText);
+          await targetChat.sendMessage(forwardedText);
         }
 
         // Add to conversation store

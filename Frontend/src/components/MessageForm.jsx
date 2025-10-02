@@ -12,9 +12,13 @@ export default function MessageForm({
   onPreview,
   onSend,
   onPause,
+  onResume,
+  onStop,
   isPaused,
   isRunning,
   loading,
+  campaignProgress,
+  disabled
 }) {
   return (
     <div className="bg-white p-6 rounded-xl shadow-md">
@@ -73,38 +77,74 @@ export default function MessageForm({
         </div>
       </div>
 
+      {/* Campaign Progress */}
+      {isRunning && campaignProgress && campaignProgress.total > 0 && (
+        <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+          <div className="flex justify-between items-center mb-2">
+            <span className="text-sm font-medium text-blue-800">تقدم الحملة</span>
+            <span className="text-sm text-blue-600">
+              {campaignProgress.current} / {campaignProgress.total}
+            </span>
+          </div>
+          <div className="w-full bg-blue-200 rounded-full h-2">
+            <div
+              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+              style={{
+                width: `${(campaignProgress.current / campaignProgress.total) * 100}%`
+              }}
+            ></div>
+          </div>
+          <div className="text-xs text-blue-600 mt-1">
+            {Math.round((campaignProgress.current / campaignProgress.total) * 100)}% مكتمل
+          </div>
+        </div>
+      )}
+
       {/* أزرار */}
       <button
-        className="w-full bg-yellow-500 text-white py-2 rounded-md hover:bg-yellow-600 transition mb-2"
+        className="w-full bg-yellow-500 text-white py-2 rounded-md hover:bg-yellow-600 transition mb-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
         onClick={onPreview}
-        disabled={loading}
+        disabled={loading || disabled}
       >
         👁️ معاينة
       </button>
 
       <button
         className={`w-full text-white py-2 rounded-md transition mb-2 ${
-          loading
+          loading || disabled
             ? "bg-gray-400 cursor-not-allowed"
             : "bg-green-600 hover:bg-green-700"
         }`}
         onClick={onSend}
-        disabled={loading || isRunning}
+        disabled={loading || isRunning || disabled}
       >
         {loading && isRunning ? "⏳ جارٍ الإرسال..." : "🚀 بدء الإرسال"}
       </button>
 
-      <button
-        className={`w-full text-white py-2 rounded-md transition mb-2 ${
-          isPaused
-            ? "bg-blue-500 hover:bg-blue-600"
-            : "bg-red-500 hover:bg-red-600"
-        }`}
-        onClick={isPaused ? onSend : onPause}
-        disabled={!isRunning}
-      >
-        {isPaused ? "▶️ استئناف" : "⏸️ إيقاف مؤقت"}
-      </button>
+      {/* Pause/Resume Button */}
+      {isRunning && (
+        <button
+          className={`w-full text-white py-2 rounded-md transition mb-2 ${
+            isPaused
+              ? "bg-blue-500 hover:bg-blue-600"
+              : "bg-orange-500 hover:bg-orange-600"
+          }`}
+          onClick={isPaused ? onResume : onPause}
+          disabled={false}
+        >
+          {isPaused ? "▶️ استئناف الحملة" : "⏸️ إيقاف مؤقت"}
+        </button>
+      )}
+
+      {/* Stop Button */}
+      {isRunning && (
+        <button
+          className="w-full bg-red-500 hover:bg-red-600 text-white py-2 rounded-md transition"
+          onClick={onStop}
+        >
+          🛑 إيقاف الحملة نهائياً
+        </button>
+      )}
     </div>
   );
 }

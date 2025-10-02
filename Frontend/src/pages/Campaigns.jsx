@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
+import { io } from "socket.io-client";
 import { User, Wifi, AlertCircle, Send, BarChart3, Users, Target, CheckCircle2, MessageSquare, Upload, FileText, Plus, X } from "lucide-react";
 
 import MessageForm from "../components/MessageForm";
@@ -44,11 +45,14 @@ export default function Campaigns() {
   // نافذة المعاينة
   const [showPreview, setShowPreview] = useState(false);
 
-  // Loader + حملة
+  // Campaign state
   const [loading, setLoading] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [activeCampaignId, setActiveCampaignId] = useState(null);
+  const [campaignProgress, setCampaignProgress] = useState({ current: 0, total: 0 });
+  const [socket, setSocket] = useState(null);
 
   // Check profile and connection status
   const checkProfileAndConnection = async () => {
@@ -99,6 +103,103 @@ export default function Campaigns() {
     }
   };
 
+  // Initialize Socket.io connection once
+  useEffect(() => {
+    console.log("🔗 Initializing Socket.io connection...");
+    const newSocket = io("http://localhost:5000");
+    setSocket(newSocket);
+
+    newSocket.on("connect", () => {
+      console.log("✅ Socket.io connected successfully");
+    });
+
+    newSocket.on("disconnect", () => {
+      console.log("❌ Socket.io disconnected");
+    });
+
+    return () => {
+      console.log("🔌 Closing Socket.io connection");
+      newSocket.close();
+    };
+  }, []);
+
+  // Set up Socket.io listeners
+  useEffect(() => {
+    if (!socket) return;
+
+    console.log("📡 Setting up Socket.io listeners with activeCampaignId:", activeCampaignId);
+
+    const handleCampaignProgress = (data) => {
+      console.log("📈 Received campaignProgress:", data);
+      if (data.campaignId === activeCampaignId) {
+        setCampaignProgress({ current: data.currentIndex, total: data.total });
+        setLog(prev => [...prev, data.result]);
+      }
+    };
+
+    const handleCampaignCompleted = (data) => {
+      console.log("🎉 Received campaignCompleted:", data);
+      if (data.campaignId === activeCampaignId) {
+        setIsRunning(false);
+        setIsPaused(false);
+        setLoading(false);
+        setActiveCampaignId(null);
+        setCampaignProgress({ current: 0, total: 0 });
+        toast.success("🎉 انتهت الحملة بالكامل");
+      }
+    };
+
+    const handleCampaignPaused = (data) => {
+      console.log("⏸️ Received campaignPaused:", data);
+      console.log("⏸️ Current activeCampaignId:", activeCampaignId);
+      if (data.campaignId === activeCampaignId) {
+        console.log("✅ Campaign ID matches, setting paused state");
+        setIsPaused(true);
+        setLoading(false);
+        toast.info("⏸️ تم إيقاف الحملة مؤقتًا");
+      } else {
+        console.log("❌ Campaign ID mismatch");
+      }
+    };
+
+    const handleCampaignResumed = (data) => {
+      console.log("▶️ Received campaignResumed:", data);
+      if (data.campaignId === activeCampaignId) {
+        setIsPaused(false);
+        setLoading(true);
+        toast.success("▶️ تم استئناف الحملة");
+      }
+    };
+
+    const handleCampaignStopped = (data) => {
+      console.log("🛑 Received campaignStopped:", data);
+      if (data.campaignId === activeCampaignId) {
+        setIsRunning(false);
+        setIsPaused(false);
+        setLoading(false);
+        setActiveCampaignId(null);
+        setCampaignProgress({ current: 0, total: 0 });
+        toast.error("🛑 تم إيقاف الحملة");
+      }
+    };
+
+    socket.on("campaignProgress", handleCampaignProgress);
+    socket.on("campaignCompleted", handleCampaignCompleted);
+    socket.on("campaignPaused", handleCampaignPaused);
+    socket.on("campaignResumed", handleCampaignResumed);
+    socket.on("campaignStopped", handleCampaignStopped);
+
+    return () => {
+      console.log("🧹 Cleaning up Socket.io listeners");
+      socket.off("campaignProgress", handleCampaignProgress);
+      socket.off("campaignCompleted", handleCampaignCompleted);
+      socket.off("campaignPaused", handleCampaignPaused);
+      socket.off("campaignResumed", handleCampaignResumed);
+      socket.off("campaignStopped", handleCampaignStopped);
+    };
+  }, [socket, activeCampaignId]);
+
+  // Check profile and connection status
   useEffect(() => {
     checkProfileAndConnection();
   }, []);
@@ -128,7 +229,7 @@ export default function Campaigns() {
     }
   };
 
-  // إرسال الرسائل (مع Pause/Resume) - Enhanced with CSV support
+  // Start campaign with new backend API
   const sendMessages = async () => {
     if (!isConnected) {
       toast.error("يرجى الاتصال بواتساب أولاً!");
@@ -143,72 +244,134 @@ export default function Campaigns() {
       return;
     }
 
+    if (!message.trim()) {
+      toast.error("يرجى كتابة نص الرسالة!");
+      return;
+    }
+
     setIsRunning(true);
     setIsPaused(false);
     setLoading(true);
+    setCurrentIndex(0);
+    setLog([]); // Clear previous logs
 
-    // Create combined recipients list with proper chat objects
-    const allRecipients = [
-      ...selectedChats.map(id => allChats.find(c => c.id === id)).filter(Boolean),
-      ...csvImportedContacts
-    ];
+    // Create FormData for the campaign
+    const formData = new FormData();
+    formData.append("message", message);
+    formData.append("delayMin", delayMin);
+    formData.append("delayMax", delayMax);
+    if (imageFile) formData.append("image", imageFile);
 
-    for (let i = currentIndex; i < allRecipients.length; i++) {
-      if (isPaused) {
-        setCurrentIndex(i); // نحفظ مكان التوقف
-        toast("⏸️ تم إيقاف الإرسال مؤقتًا");
-        setLoading(false);
-        return;
-      }
-
-      const chat = allRecipients[i];
-
-      // إعداد البيانات
-      const formData = new FormData();
-      formData.append("message", message);
-      formData.append("delayMin", delayMin);
-      formData.append("delayMax", delayMax);
-      if (imageFile) formData.append("image", imageFile);
-
-      // Handle both WhatsApp contacts and CSV contacts
-      if (chat.source === 'csv') {
-        // For CSV contacts, use the number directly
-        formData.append("numbers[]", chat.number);
-      } else {
-        // For WhatsApp contacts, use existing logic
+    // Add WhatsApp contacts
+    selectedChats.forEach(chatId => {
+      const chat = allChats.find(c => c.id === chatId);
+      if (chat) {
         if (chat.isGroup) {
           formData.append("groups[]", chat.id);
         } else {
           formData.append("numbers[]", chat.id);
         }
       }
+    });
 
-      try {
-        const res = await fetch("http://localhost:5000/send", {
-          method: "POST",
-          body: formData,
-        });
-        const data = await res.json();
-        if (data.results) {
-          setLog((prev) => [...prev, ...data.results]);
-          toast.success(`تم الإرسال إلى ${chat.name}`);
-        }
-      } catch (err) {
-        console.error("❌ Send Error:", err);
-        toast.error(`فشل الإرسال إلى ${chat?.name || "مجهول"}`);
+    // Add CSV contacts
+    csvImportedContacts.forEach(contact => {
+      formData.append("numbers[]", contact.number);
+    });
+
+    try {
+      const res = await fetch("http://localhost:5000/send", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+
+      console.log("📤 Campaign start response:", data);
+      if (data.success && data.campaignId) {
+        setActiveCampaignId(data.campaignId);
+        setCampaignProgress({ current: 0, total: totalRecipients.length });
+        console.log("✅ Frontend: Campaign started with ID", data.campaignId);
+        toast.success("🚀 بدأت الحملة بنجاح!");
+      } else {
+        throw new Error(data.error || "فشل في بدء الحملة");
       }
+    } catch (err) {
+      console.error("❌ Campaign Start Error:", err);
+      toast.error(`فشل في بدء الحملة: ${err.message}`);
+      setIsRunning(false);
+      setLoading(false);
+    }
+  };
 
-      // Delay عشوائي بين الرسائل
-      const delay =
-        Math.floor(Math.random() * (delayMax - delayMin + 1)) + delayMin;
-      await new Promise((resolve) => setTimeout(resolve, delay));
+  // Pause campaign
+  const pauseCampaign = async () => {
+    console.log("🔍 Frontend: Attempting to pause campaign", activeCampaignId);
+    if (!activeCampaignId) {
+      console.error("❌ No active campaign ID to pause");
+      toast.error("لا توجد حملة نشطة للإيقاف");
+      return;
     }
 
-    setIsRunning(false);
-    setIsPaused(false);
-    setCurrentIndex(0);
-    setLoading(false);
-    toast.success("🎉 انتهت الحملة بالكامل");
+    try {
+      const res = await fetch(`http://localhost:5000/campaign/${activeCampaignId}/pause`, {
+        method: "POST",
+      });
+      const data = await res.json();
+
+      console.log("📤 Pause response:", data);
+      if (!data.success) {
+        throw new Error(data.error || "فشل في إيقاف الحملة");
+      }
+    } catch (err) {
+      console.error("❌ Pause Error:", err);
+      toast.error(`فشل في إيقاف الحملة: ${err.message}`);
+    }
+  };
+
+  // Resume campaign
+  const resumeCampaign = async () => {
+    if (!activeCampaignId) return;
+
+    try {
+      const res = await fetch(`http://localhost:5000/campaign/${activeCampaignId}/resume`, {
+        method: "POST",
+      });
+      const data = await res.json();
+
+      if (!data.success) {
+        throw new Error(data.error || "فشل في استئناف الحملة");
+      }
+    } catch (err) {
+      console.error("❌ Resume Error:", err);
+      toast.error(`فشل في استئناف الحملة: ${err.message}`);
+    }
+  };
+
+  // Stop campaign
+  const stopCampaign = async () => {
+    console.log("🔍 Frontend: Attempting to stop campaign", activeCampaignId);
+    if (!activeCampaignId) {
+      console.error("❌ No active campaign ID to stop");
+      toast.error("لا توجد حملة نشطة للإيقاف");
+      return;
+    }
+
+    try {
+      const res = await fetch(`http://localhost:5000/campaign/${activeCampaignId}/stop`, {
+        method: "POST",
+      });
+      const data = await res.json();
+
+      console.log("📤 Stop response:", data);
+      if (data.success) {
+        toast.success("🛑 تم إيقاف الحملة");
+      } else {
+        throw new Error(data.error || "فشل في إيقاف الحملة");
+      }
+    } catch (err) {
+      console.error("❌ Stop Error:", err);
+      toast.error(`فشل في إيقاف الحملة: ${err.message}`);
+    }
   };
 
   // Selected Contacts Preview Component
@@ -711,10 +874,13 @@ export default function Campaigns() {
                       setDelayMax={setDelayMax}
                       onPreview={() => setShowPreview(true)}
                       onSend={sendMessages}
-                      onPause={() => setIsPaused(true)}
+                      onPause={pauseCampaign}
+                      onResume={resumeCampaign}
+                      onStop={stopCampaign}
                       isPaused={isPaused}
                       isRunning={isRunning}
                       loading={loading}
+                      campaignProgress={campaignProgress}
                       disabled={!isConnected || (selectedChats.length === 0 && csvImportedContacts.length === 0)}
                     />
                   </div>
