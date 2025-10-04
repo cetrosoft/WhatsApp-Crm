@@ -1,0 +1,674 @@
+/**
+ * Contact Routes
+ *
+ * RESTful API endpoints for CRM contacts management
+ * Includes: CRUD operations, search, filtering, tagging, assignment
+ *
+ * All routes protected by auth middleware
+ * Multi-tenant isolation enforced via organizationId from JWT
+ */
+
+import express from 'express';
+import { supabase } from '../config/supabase.js';
+import { authenticateToken } from '../middleware/auth.js';
+
+const router = express.Router();
+
+// Apply authentication to all routes
+router.use(authenticateToken);
+
+/**
+ * GET /api/crm/contacts
+ * List all contacts with filtering, search, and pagination
+ *
+ * Query params:
+ * - page: Page number (default: 1)
+ * - limit: Items per page (default: 20)
+ * - search: Search in name, phone, email
+ * - status: Filter by status (lead, prospect, customer, inactive)
+ * - tags: Filter by tags (comma-separated)
+ * - assigned_to: Filter by assigned user
+ * - company_id: Filter by company
+ * - lead_source: Filter by lead source
+ */
+router.get('/', async (req, res) => {
+  try {
+    const { organizationId } = req.user;
+    const {
+      page = 1,
+      limit = 20,
+      search,
+      status,
+      tags,
+      assigned_to,
+      company_id,
+      lead_source
+    } = req.query;
+
+    // Build query
+    let query = supabase
+      .from('contacts')
+      .select('*, companies(id, name), assigned_user:users!contacts_assigned_to_fkey(id, full_name)', { count: 'exact' })
+      .eq('organization_id', organizationId)
+      .order('created_at', { ascending: false });
+
+    // Apply filters
+    if (search) {
+      query = query.or(`name.ilike.%${search}%,phone.ilike.%${search}%,email.ilike.%${search}%`);
+    }
+
+    if (status) {
+      query = query.eq('status', status);
+    }
+
+    if (tags) {
+      const tagArray = tags.split(',');
+      query = query.contains('tags', tagArray);
+    }
+
+    if (assigned_to) {
+      query = query.eq('assigned_to', assigned_to);
+    }
+
+    if (company_id) {
+      query = query.eq('company_id', company_id);
+    }
+
+    if (lead_source) {
+      query = query.eq('lead_source', lead_source);
+    }
+
+    // Apply pagination
+    const offset = (page - 1) * limit;
+    query = query.range(offset, offset + limit - 1);
+
+    const { data, error, count } = await query;
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      data,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total: count,
+        pages: Math.ceil(count / limit)
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching contacts:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch contacts',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/crm/contacts/stats
+ * Get contact statistics for the organization
+ */
+router.get('/stats', async (req, res) => {
+  try {
+    const { organizationId } = req.user;
+
+    const { data, error } = await supabase
+      .rpc('get_contact_stats', { org_id: organizationId });
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      data: data[0] || {
+        total_contacts: 0,
+        leads: 0,
+        prospects: 0,
+        customers: 0,
+        inactive: 0
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching contact stats:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch contact statistics',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/crm/contacts/:id
+ * Get single contact by ID with full details
+ */
+router.get('/:id', async (req, res) => {
+  try {
+    const { organizationId, userId } = req.user;
+    const { id } = req.params;
+
+    const { data, error } = await supabase
+      .from('contacts')
+      .select(`
+        *,
+        companies(id, name, industry, website),
+        assigned_user:users!contacts_assigned_to_fkey(id, full_name, email),
+        created_by_user:users!contacts_created_by_fkey(id, full_name)
+      `)
+      .eq('id', id)
+      .eq('organization_id', organizationId)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return res.status(404).json({
+          success: false,
+          message: 'Contact not found'
+        });
+      }
+      throw error;
+    }
+
+    res.json({
+      success: true,
+      data
+    });
+  } catch (error) {
+    console.error('Error fetching contact:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch contact',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/crm/contacts
+ * Create new contact
+ *
+ * Body:
+ * - name: string (required)
+ * - phone: string (required, unique per org)
+ * - email: string (optional)
+ * - company_id: uuid (optional)
+ * - position: string (optional)
+ * - status: enum (optional, default: 'lead')
+ * - lead_source: enum (optional)
+ * - tags: array (optional)
+ * - address, city, country: string (optional)
+ * - notes: string (optional)
+ * - assigned_to: uuid (optional)
+ */
+router.post('/', async (req, res) => {
+  try {
+    const { organizationId, userId } = req.user;
+    const {
+      name,
+      phone,
+      email,
+      company_id,
+      position,
+      status = 'lead',
+      lead_source,
+      tags = [],
+      address,
+      city,
+      country,
+      notes,
+      assigned_to
+    } = req.body;
+
+    // Validation
+    if (!name || !phone) {
+      return res.status(400).json({
+        success: false,
+        message: 'Name and phone are required'
+      });
+    }
+
+    // Check for duplicate phone in same organization
+    const { data: existing, error: checkError } = await supabase
+      .from('contacts')
+      .select('id')
+      .eq('organization_id', organizationId)
+      .eq('phone', phone)
+      .maybeSingle();
+
+    if (checkError) throw checkError;
+
+    if (existing) {
+      return res.status(409).json({
+        success: false,
+        message: 'A contact with this phone number already exists'
+      });
+    }
+
+    // Create contact
+    const { data, error } = await supabase
+      .from('contacts')
+      .insert({
+        organization_id: organizationId,
+        created_by: userId,
+        name,
+        phone,
+        email,
+        company_id,
+        position,
+        status,
+        lead_source,
+        tags,
+        address,
+        city,
+        country,
+        notes,
+        assigned_to: assigned_to || userId // Auto-assign to creator if not specified
+      })
+      .select(`
+        *,
+        companies(id, name),
+        assigned_user:users!contacts_assigned_to_fkey(id, full_name)
+      `)
+      .single();
+
+    if (error) throw error;
+
+    res.status(201).json({
+      success: true,
+      message: 'Contact created successfully',
+      data
+    });
+  } catch (error) {
+    console.error('Error creating contact:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create contact',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * PUT /api/crm/contacts/:id
+ * Update contact
+ */
+router.put('/:id', async (req, res) => {
+  try {
+    const { organizationId } = req.user;
+    const { id } = req.params;
+    const {
+      name,
+      phone,
+      email,
+      company_id,
+      position,
+      status,
+      lead_source,
+      tags,
+      address,
+      city,
+      country,
+      notes,
+      assigned_to
+    } = req.body;
+
+    // Check if contact exists and belongs to organization
+    const { data: existing, error: checkError } = await supabase
+      .from('contacts')
+      .select('id')
+      .eq('id', id)
+      .eq('organization_id', organizationId)
+      .maybeSingle();
+
+    if (checkError) throw checkError;
+
+    if (!existing) {
+      return res.status(404).json({
+        success: false,
+        message: 'Contact not found'
+      });
+    }
+
+    // If phone is being changed, check for duplicates
+    if (phone) {
+      const { data: duplicate, error: dupError } = await supabase
+        .from('contacts')
+        .select('id')
+        .eq('organization_id', organizationId)
+        .eq('phone', phone)
+        .neq('id', id)
+        .maybeSingle();
+
+      if (dupError) throw dupError;
+
+      if (duplicate) {
+        return res.status(409).json({
+          success: false,
+          message: 'Another contact with this phone number already exists'
+        });
+      }
+    }
+
+    // Update contact
+    const updateData = {};
+    if (name !== undefined) updateData.name = name;
+    if (phone !== undefined) updateData.phone = phone;
+    if (email !== undefined) updateData.email = email;
+    if (company_id !== undefined) updateData.company_id = company_id;
+    if (position !== undefined) updateData.position = position;
+    if (status !== undefined) updateData.status = status;
+    if (lead_source !== undefined) updateData.lead_source = lead_source;
+    if (tags !== undefined) updateData.tags = tags;
+    if (address !== undefined) updateData.address = address;
+    if (city !== undefined) updateData.city = city;
+    if (country !== undefined) updateData.country = country;
+    if (notes !== undefined) updateData.notes = notes;
+    if (assigned_to !== undefined) updateData.assigned_to = assigned_to;
+
+    const { data, error } = await supabase
+      .from('contacts')
+      .update(updateData)
+      .eq('id', id)
+      .eq('organization_id', organizationId)
+      .select(`
+        *,
+        companies(id, name),
+        assigned_user:users!contacts_assigned_to_fkey(id, full_name)
+      `)
+      .single();
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      message: 'Contact updated successfully',
+      data
+    });
+  } catch (error) {
+    console.error('Error updating contact:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update contact',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * DELETE /api/crm/contacts/:id
+ * Delete contact (soft delete by setting status to inactive)
+ * Only admin/manager can permanently delete
+ */
+router.delete('/:id', async (req, res) => {
+  try {
+    const { organizationId, role } = req.user;
+    const { id } = req.params;
+    const { permanent = false } = req.query;
+
+    // Check if contact exists
+    const { data: existing, error: checkError } = await supabase
+      .from('contacts')
+      .select('id')
+      .eq('id', id)
+      .eq('organization_id', organizationId)
+      .maybeSingle();
+
+    if (checkError) throw checkError;
+
+    if (!existing) {
+      return res.status(404).json({
+        success: false,
+        message: 'Contact not found'
+      });
+    }
+
+    // Permanent delete (only admin/manager)
+    if (permanent && ['admin', 'manager'].includes(role)) {
+      const { error } = await supabase
+        .from('contacts')
+        .delete()
+        .eq('id', id)
+        .eq('organization_id', organizationId);
+
+      if (error) throw error;
+
+      return res.json({
+        success: true,
+        message: 'Contact permanently deleted'
+      });
+    }
+
+    // Soft delete (set to inactive)
+    const { error } = await supabase
+      .from('contacts')
+      .update({ status: 'inactive' })
+      .eq('id', id)
+      .eq('organization_id', organizationId);
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      message: 'Contact marked as inactive'
+    });
+  } catch (error) {
+    console.error('Error deleting contact:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete contact',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * PATCH /api/crm/contacts/:id/tags
+ * Add or remove tags from contact
+ *
+ * Body:
+ * - action: 'add' | 'remove'
+ * - tags: array of tag strings
+ */
+router.patch('/:id/tags', async (req, res) => {
+  try {
+    const { organizationId } = req.user;
+    const { id } = req.params;
+    const { action, tags } = req.body;
+
+    if (!action || !tags || !Array.isArray(tags)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Action and tags array are required'
+      });
+    }
+
+    // Get current contact
+    const { data: contact, error: fetchError } = await supabase
+      .from('contacts')
+      .select('tags')
+      .eq('id', id)
+      .eq('organization_id', organizationId)
+      .single();
+
+    if (fetchError) throw fetchError;
+
+    let newTags = contact.tags || [];
+
+    if (action === 'add') {
+      // Add tags (avoid duplicates)
+      newTags = [...new Set([...newTags, ...tags])];
+    } else if (action === 'remove') {
+      // Remove tags
+      newTags = newTags.filter(tag => !tags.includes(tag));
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: 'Action must be "add" or "remove"'
+      });
+    }
+
+    // Update contact
+    const { data, error } = await supabase
+      .from('contacts')
+      .update({ tags: newTags })
+      .eq('id', id)
+      .eq('organization_id', organizationId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      message: `Tags ${action}ed successfully`,
+      data
+    });
+  } catch (error) {
+    console.error('Error updating contact tags:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update contact tags',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * PATCH /api/crm/contacts/:id/assign
+ * Assign contact to user
+ *
+ * Body:
+ * - assigned_to: user UUID
+ */
+router.patch('/:id/assign', async (req, res) => {
+  try {
+    const { organizationId } = req.user;
+    const { id } = req.params;
+    const { assigned_to } = req.body;
+
+    if (!assigned_to) {
+      return res.status(400).json({
+        success: false,
+        message: 'assigned_to is required'
+      });
+    }
+
+    // Verify user belongs to same organization
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('id', assigned_to)
+      .eq('organization_id', organizationId)
+      .maybeSingle();
+
+    if (userError) throw userError;
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: 'User not found in your organization'
+      });
+    }
+
+    // Update contact
+    const { data, error } = await supabase
+      .from('contacts')
+      .update({ assigned_to })
+      .eq('id', id)
+      .eq('organization_id', organizationId)
+      .select(`
+        *,
+        assigned_user:users!contacts_assigned_to_fkey(id, full_name, email)
+      `)
+      .single();
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      message: 'Contact assigned successfully',
+      data
+    });
+  } catch (error) {
+    console.error('Error assigning contact:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to assign contact',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/crm/contacts/:id/interactions
+ * Get all interactions for a contact
+ */
+router.get('/:id/interactions', async (req, res) => {
+  try {
+    const { organizationId } = req.user;
+    const { id } = req.params;
+
+    const { data, error } = await supabase
+      .from('interactions')
+      .select(`
+        *,
+        user:users!interactions_user_id_fkey(id, full_name)
+      `)
+      .eq('contact_id', id)
+      .eq('organization_id', organizationId)
+      .order('interaction_date', { ascending: false });
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      data
+    });
+  } catch (error) {
+    console.error('Error fetching contact interactions:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch contact interactions',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/crm/contacts/:id/deals
+ * Get all deals for a contact
+ */
+router.get('/:id/deals', async (req, res) => {
+  try {
+    const { organizationId } = req.user;
+    const { id } = req.params;
+
+    const { data, error } = await supabase
+      .from('deals')
+      .select(`
+        *,
+        pipeline:pipelines(id, name),
+        stage:pipeline_stages(id, name, color)
+      `)
+      .eq('contact_id', id)
+      .eq('organization_id', organizationId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      data
+    });
+  } catch (error) {
+    console.error('Error fetching contact deals:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch contact deals',
+      error: error.message
+    });
+  }
+});
+
+export default router;

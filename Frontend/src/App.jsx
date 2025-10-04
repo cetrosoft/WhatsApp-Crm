@@ -1,57 +1,89 @@
 import React from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 
-import Sidebar from "./components/Sidebar";
-import Dashboard from "./pages/Dashboard";
+// Contexts
+import { LanguageProvider } from "./contexts/LanguageContext";
+import { AuthProvider } from "./contexts/AuthContext";
+
+// Components
+import DashboardLayout from "./components/layout/DashboardLayout";
+import ProtectedRoute from "./components/ProtectedRoute";
+
+// Pages - Auth
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import AcceptInvitation from "./pages/AcceptInvitation";
+import ResetPassword from "./pages/ResetPassword";
+
+// Pages - Dashboard
+import Dashboard from "./pages/dashboard";
 import Campaigns from "./pages/Campaigns";
 import Settings from "./pages/Settings";
-import menuConfig from "./menuConfig";
 import Inbox from "./pages/Inbox";
+import AccountSettings from "./pages/AccountSettings";
+import menuConfig from "./menuConfig";
 
-// Map بين أسماء الكومبوننتس والكود الفعلي
+// Map between component names and actual code
 const componentsMap = {
   Dashboard,
   Campaigns,
   Settings,
-  Inbox, 
+  Inbox,
+  AccountSettings,
+};
+
+// Main Layout for Protected Pages
+const MainLayout = () => {
+  return (
+    <DashboardLayout>
+      <Routes>
+        {/* Dashboard */}
+        <Route path="/dashboard" element={<Dashboard />} />
+
+        {/* Old routes - will be migrated to new structure */}
+        <Route path="/campaigns" element={<Campaigns />} />
+        <Route path="/inbox" element={<Inbox />} />
+        <Route path="/settings" element={<Settings />} />
+        <Route path="/account-settings" element={<AccountSettings />} />
+
+        {/* Default redirect */}
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      </Routes>
+    </DashboardLayout>
+  );
 };
 
 export default function App() {
-  // الحالة بتتحكم في فتح/قفل القائمة
-  const [isSidebarOpen, setIsSidebarOpen] = React.useState(true);
-
   return (
     <Router>
-      {/* Toast Notifications شغال على مستوى التطبيق كله */}
-      <Toaster position="top-center" />
+      <AuthProvider>
+        <LanguageProvider>
+          {/* Toast Notifications */}
+          <Toaster position="top-center" />
 
-      <div className="flex" style={{ maxWidth: '100vw', overflow: 'hidden' }}>
-        {/* Sidebar */}
-        <Sidebar
-          isOpen={isSidebarOpen}
-          toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-        />
-
-        {/* Main Content */}
-        <div
-          className="flex-1 bg-gray-50 min-h-screen p-4 sm:p-6 md:p-10 font-cairo transition-all duration-300"
-          style={{ maxWidth: 'calc(100vw - 250px)', overflow: 'hidden', minWidth: '0' }}
-        >
           <Routes>
-            {menuConfig.map((item) => {
-              const Component = componentsMap[item.component];
-              return (
-                <Route
-                  key={item.path}
-                  path={item.path}
-                  element={<Component />}
-                />
-              );
-            })}
+            {/* Public Routes */}
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/accept-invitation" element={<AcceptInvitation />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+
+            {/* Protected Routes */}
+            <Route
+              path="/*"
+              element={
+                <ProtectedRoute>
+                  <MainLayout />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Default Redirect */}
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
           </Routes>
-        </div>
-      </div>
+        </LanguageProvider>
+      </AuthProvider>
     </Router>
   );
 }

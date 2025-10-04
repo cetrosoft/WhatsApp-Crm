@@ -2,12 +2,13 @@ export default {
   content: ["./index.html", "./src/**/*.{js,jsx}"],
   theme: {
     extend: {
-            fontFamily: {
-            cairo: ["Cairo", "sans-serif"],
+      fontFamily: {
+        cairo: ["Cairo", "sans-serif"],
+        sans: ["Cairo", "Inter", "system-ui", "sans-serif"],
       },
-
     },
   },
-  plugins: [],
-  
+  plugins: [
+    require('tailwindcss-rtl'),
+  ],
 }

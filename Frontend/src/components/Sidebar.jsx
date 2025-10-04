@@ -1,10 +1,13 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import menuConfig from "../menuConfig";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, LogOut } from "lucide-react";
+import { useAuth } from "../contexts/AuthContext";
+import LanguageSwitcher from "./LanguageSwitcher";
 
 export default function Sidebar({ isOpen, toggleSidebar }) {
   const location = useLocation();
+  const { logout, user } = useAuth();
 
   return (
     <div
@@ -42,6 +45,34 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
           </Link>
         ))}
       </nav>
+
+      {/* Footer: Language Switcher & Logout */}
+      <div className="p-3 border-t border-[#5a5d8a] space-y-2">
+        {/* Language Switcher */}
+        <div className="flex items-center justify-center">
+          <LanguageSwitcher />
+        </div>
+
+        {/* Logout Button */}
+        {isOpen && (
+          <button
+            onClick={logout}
+            className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-[#5a5d8a] transition-colors text-start"
+          >
+            <LogOut size={20} />
+            <span className="text-sm">Logout</span>
+          </button>
+        )}
+        {!isOpen && (
+          <button
+            onClick={logout}
+            className="w-full flex items-center justify-center p-3 rounded-lg hover:bg-[#5a5d8a] transition-colors"
+            title="Logout"
+          >
+            <LogOut size={20} />
+          </button>
+        )}
+      </div>
     </div>
   );
 }
