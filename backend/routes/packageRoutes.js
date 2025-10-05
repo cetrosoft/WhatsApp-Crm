@@ -61,11 +61,11 @@ router.get('/:slug', async (req, res) => {
 
 /**
  * GET /api/packages/organization/current
- * Get current organization's package with effective limits
+ * Get current organization's package with limits
  */
 router.get('/organization/current', authenticate, setTenantContext, async (req, res) => {
   try {
-    // Get organization with package
+    // Get organization with package (single source of truth)
     const { data: organization, error: orgError } = await supabase
       .from('organizations')
       .select(`
@@ -79,26 +79,10 @@ router.get('/organization/current', authenticate, setTenantContext, async (req, 
       return res.status(404).json({ error: 'Organization not found' });
     }
 
-    // Get effective limits (package + custom overrides)
-    const { data: limits, error: limitsError } = await supabase
-      .rpc('get_organization_limits', { org_id: req.organizationId })
-      .single();
-
-    if (limitsError) {
-      console.error('Get limits error:', limitsError);
-    }
-
     res.json({
       package: organization.package,
       subscription_status: organization.subscription_status,
       trial_ends_at: organization.trial_ends_at,
-      custom_limits: organization.custom_limits,
-      effective_limits: limits || {
-        max_users: organization.package.max_users,
-        max_whatsapp_profiles: organization.package.max_whatsapp_profiles,
-        max_customers: organization.package.max_customers,
-        max_messages_per_day: organization.package.max_messages_per_day,
-      },
     });
   } catch (error) {
     console.error('Get current package error:', error);
@@ -155,40 +139,6 @@ router.post('/organization/upgrade', authenticate, setTenantContext, authorize([
   } catch (error) {
     console.error('Upgrade package error:', error);
     res.status(500).json({ error: 'Failed to upgrade package' });
-  }
-});
-
-/**
- * POST /api/packages/organization/custom-limits
- * Set custom limits for enterprise organizations (admin only)
- */
-router.post('/organization/custom-limits', authenticate, setTenantContext, authorize(['admin']), async (req, res) => {
-  try {
-    const { custom_limits } = req.body;
-
-    if (!custom_limits || typeof custom_limits !== 'object') {
-      return res.status(400).json({ error: 'Invalid custom limits' });
-    }
-
-    // Update organization
-    const { data: organization, error } = await supabase
-      .from('organizations')
-      .update({ custom_limits })
-      .eq('id', req.organizationId)
-      .select()
-      .single();
-
-    if (error) {
-      throw error;
-    }
-
-    res.json({
-      message: 'Custom limits updated successfully',
-      custom_limits: organization.custom_limits,
-    });
-  } catch (error) {
-    console.error('Update custom limits error:', error);
-    res.status(500).json({ error: 'Failed to update custom limits' });
   }
 });
 

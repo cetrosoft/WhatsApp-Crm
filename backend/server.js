@@ -17,6 +17,7 @@ import exportRoutes from './routes/exportRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import packageRoutes from './routes/packageRoutes.js';
+import organizationRoutes from './routes/organizationRoutes.js';
 
 // CRM Routes
 import contactRoutes from './routes/contactRoutes.js';
@@ -54,6 +55,7 @@ whatsappClient.getClient().on("message", (msg) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/packages', packageRoutes);
+app.use('/api/organization', organizationRoutes);
 
 // CRM Routes
 app.use('/api/crm/contacts', contactRoutes);

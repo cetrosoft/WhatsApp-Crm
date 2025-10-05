@@ -9,6 +9,7 @@ import jwt from 'jsonwebtoken';
 import supabase from '../config/supabase.js';
 import supabaseAuth from '../config/supabaseAuth.js';
 import crypto from 'crypto';
+import { authenticate } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -247,14 +248,9 @@ router.post('/logout', async (req, res) => {
  * GET /api/auth/me
  * Get current user info (requires auth middleware)
  */
-router.get('/me', async (req, res) => {
+router.get('/me', authenticate, async (req, res) => {
   try {
-    // This will be protected by auth middleware
-    const userId = req.user?.userId;
-
-    if (!userId) {
-      return res.status(401).json({ error: 'Not authenticated' });
-    }
+    const userId = req.user.userId;
 
     const { data: user, error } = await supabase
       .from('users')

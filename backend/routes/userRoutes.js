@@ -53,10 +53,10 @@ router.post('/invite', authenticate, setTenantContext, authorize(['admin', 'mana
       return res.status(400).json({ error: 'Invalid role' });
     }
 
-    // Get organization details
+    // Get organization with package limits
     const { data: organization } = await supabase
       .from('organizations')
-      .select('name, max_users')
+      .select('name, package:packages(max_users)')
       .eq('id', req.organizationId)
       .single();
 
@@ -70,10 +70,12 @@ router.post('/invite', authenticate, setTenantContext, authorize(['admin', 'mana
       .select('*', { count: 'exact', head: true })
       .eq('organization_id', req.organizationId);
 
-    if (userCount >= organization.max_users) {
+    const maxUsers = organization.package?.max_users;
+
+    if (maxUsers && userCount >= maxUsers) {
       return res.status(403).json({
         error: 'User limit reached',
-        message: `Your plan allows ${organization.max_users} users. Upgrade to add more.`
+        message: `Your plan allows ${maxUsers} users. Upgrade to add more.`
       });
     }
 

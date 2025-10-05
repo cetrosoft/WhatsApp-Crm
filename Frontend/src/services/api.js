@@ -223,15 +223,60 @@ export const packageAPI = {
   hasFeature: async (featureName) => {
     return await apiCall(`/api/packages/organization/check-feature/${featureName}`);
   },
+};
+
+/**
+ * Organization Management API
+ */
+export const organizationAPI = {
+  /**
+   * Get current organization details
+   */
+  getCurrent: async () => {
+    return await apiCall('/api/organization');
+  },
 
   /**
-   * Set custom limits (enterprise)
+   * Update organization details
    */
-  setCustomLimits: async (limits) => {
-    return await apiCall('/api/packages/organization/custom-limits', {
-      method: 'POST',
-      body: JSON.stringify({ custom_limits: limits }),
+  update: async (data) => {
+    return await apiCall('/api/organization', {
+      method: 'PATCH',
+      body: JSON.stringify(data),
     });
+  },
+
+  /**
+   * Upload organization logo
+   */
+  uploadLogo: async (file) => {
+    const formData = new FormData();
+    formData.append('logo', file);
+
+    const token = getToken();
+    const headers = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    try {
+      const response = await fetch(`${API_URL}/api/organization/logo`, {
+        method: 'POST',
+        headers,
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to upload logo');
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Upload logo error:', error);
+      throw error;
+    }
   },
 };
 
@@ -249,5 +294,6 @@ export default {
   authAPI,
   userAPI,
   packageAPI,
+  organizationAPI,
   tokenUtils,
 };
