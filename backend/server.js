@@ -18,6 +18,8 @@ import authRoutes from './routes/authRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import packageRoutes from './routes/packageRoutes.js';
 import organizationRoutes from './routes/organizationRoutes.js';
+import countriesRoutes from './routes/countriesRoutes.js';
+import statusesRoutes from './routes/statusesRoutes.js';
 
 // CRM Routes
 import contactRoutes from './routes/contactRoutes.js';
@@ -56,6 +58,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/packages', packageRoutes);
 app.use('/api/organization', organizationRoutes);
+app.use('/api/countries', countriesRoutes);
+app.use('/api/statuses', statusesRoutes);
 
 // CRM Routes
 app.use('/api/crm/contacts', contactRoutes);

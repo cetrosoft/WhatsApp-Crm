@@ -48,17 +48,38 @@ router.get('/', async (req, res) => {
     // Build query
     let query = supabase
       .from('contacts')
-      .select('*, companies(id, name), assigned_user:users!contacts_assigned_to_fkey(id, full_name)', { count: 'exact' })
+      .select(`
+        *,
+        companies(id, name),
+        country:countries(id, code, name_en, name_ar, phone_code, flag_emoji),
+        status:contact_statuses(id, slug, name_en, name_ar, color),
+        assigned_user:users!contacts_assigned_to_fkey(id, full_name)
+      `, { count: 'exact' })
       .eq('organization_id', organizationId)
       .order('created_at', { ascending: false });
 
     // Apply filters
     if (search) {
-      query = query.or(`name.ilike.%${search}%,phone.ilike.%${search}%,email.ilike.%${search}%`);
+      query = query.or(`name.ilike.%${search}%,phone.ilike.%${search}%,email.ilike.%${search}%,tags.cs.{${search}}`);
     }
 
     if (status) {
-      query = query.eq('status', status);
+      // Status can be either slug or UUID
+      // If it's a slug, find the status_id first
+      if (status.length < 36) {
+        // It's a slug (e.g., 'lead', 'prospect')
+        const { data: statusData } = await supabase
+          .from('contact_statuses')
+          .select('id')
+          .eq('slug', status)
+          .single();
+        if (statusData) {
+          query = query.eq('status_id', statusData.id);
+        }
+      } else {
+        // It's a UUID
+        query = query.eq('status_id', status);
+      }
     }
 
     if (tags) {
@@ -153,6 +174,8 @@ router.get('/:id', async (req, res) => {
       .select(`
         *,
         companies(id, name, industry, website),
+        country:countries(id, code, name_en, name_ar, phone_code, flag_emoji),
+        status:contact_statuses(id, slug, name_en, name_ar, color, description_en, description_ar),
         assigned_user:users!contacts_assigned_to_fkey(id, full_name, email),
         created_by_user:users!contacts_created_by_fkey(id, full_name)
       `)
@@ -194,10 +217,11 @@ router.get('/:id', async (req, res) => {
  * - email: string (optional)
  * - company_id: uuid (optional)
  * - position: string (optional)
- * - status: enum (optional, default: 'lead')
+ * - status_id: uuid (optional, default: 'lead' status ID)
+ * - country_id: uuid (optional)
  * - lead_source: enum (optional)
  * - tags: array (optional)
- * - address, city, country: string (optional)
+ * - address, city: string (optional)
  * - notes: string (optional)
  * - assigned_to: uuid (optional)
  */
@@ -210,12 +234,12 @@ router.post('/', async (req, res) => {
       email,
       company_id,
       position,
-      status = 'lead',
+      status_id,
+      country_id,
       lead_source,
       tags = [],
       address,
       city,
-      country,
       notes,
       assigned_to
     } = req.body;
@@ -245,6 +269,17 @@ router.post('/', async (req, res) => {
       });
     }
 
+    // Get default status_id if not provided (lead)
+    let finalStatusId = status_id;
+    if (!finalStatusId) {
+      const { data: defaultStatus } = await supabase
+        .from('contact_statuses')
+        .select('id')
+        .eq('slug', 'lead')
+        .single();
+      finalStatusId = defaultStatus?.id;
+    }
+
     // Create contact
     const { data, error } = await supabase
       .from('contacts')
@@ -256,18 +291,20 @@ router.post('/', async (req, res) => {
         email,
         company_id,
         position,
-        status,
+        status_id: finalStatusId,
+        country_id,
         lead_source,
         tags,
         address,
         city,
-        country,
         notes,
         assigned_to: assigned_to || userId // Auto-assign to creator if not specified
       })
       .select(`
         *,
         companies(id, name),
+        country:countries(id, code, name_en, name_ar, phone_code, flag_emoji),
+        status:contact_statuses(id, slug, name_en, name_ar, color),
         assigned_user:users!contacts_assigned_to_fkey(id, full_name)
       `)
       .single();
@@ -303,12 +340,12 @@ router.put('/:id', async (req, res) => {
       email,
       company_id,
       position,
-      status,
+      status_id,
+      country_id,
       lead_source,
       tags,
       address,
       city,
-      country,
       notes,
       assigned_to
     } = req.body;
@@ -357,12 +394,12 @@ router.put('/:id', async (req, res) => {
     if (email !== undefined) updateData.email = email;
     if (company_id !== undefined) updateData.company_id = company_id;
     if (position !== undefined) updateData.position = position;
-    if (status !== undefined) updateData.status = status;
+    if (status_id !== undefined) updateData.status_id = status_id;
+    if (country_id !== undefined) updateData.country_id = country_id;
     if (lead_source !== undefined) updateData.lead_source = lead_source;
     if (tags !== undefined) updateData.tags = tags;
     if (address !== undefined) updateData.address = address;
     if (city !== undefined) updateData.city = city;
-    if (country !== undefined) updateData.country = country;
     if (notes !== undefined) updateData.notes = notes;
     if (assigned_to !== undefined) updateData.assigned_to = assigned_to;
 
@@ -374,6 +411,8 @@ router.put('/:id', async (req, res) => {
       .select(`
         *,
         companies(id, name),
+        country:countries(id, code, name_en, name_ar, phone_code, flag_emoji),
+        status:contact_statuses(id, slug, name_en, name_ar, color),
         assigned_user:users!contacts_assigned_to_fkey(id, full_name)
       `)
       .single();
@@ -440,9 +479,16 @@ router.delete('/:id', async (req, res) => {
     }
 
     // Soft delete (set to inactive)
+    // Get inactive status ID
+    const { data: inactiveStatus } = await supabase
+      .from('contact_statuses')
+      .select('id')
+      .eq('slug', 'inactive')
+      .single();
+
     const { error } = await supabase
       .from('contacts')
-      .update({ status: 'inactive' })
+      .update({ status_id: inactiveStatus?.id })
       .eq('id', id)
       .eq('organization_id', organizationId);
 
@@ -666,6 +712,120 @@ router.get('/:id/deals', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch contact deals',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/crm/contacts/:id/avatar
+ * Upload contact avatar image
+ */
+router.post('/:id/avatar', async (req, res) => {
+  try {
+    const { organizationId } = req.user;
+    const { id } = req.params;
+
+    // Check if contact exists
+    const { data: contact, error: checkError } = await supabase
+      .from('contacts')
+      .select('id')
+      .eq('id', id)
+      .eq('organization_id', organizationId)
+      .maybeSingle();
+
+    if (checkError) throw checkError;
+
+    if (!contact) {
+      return res.status(404).json({
+        success: false,
+        message: 'Contact not found'
+      });
+    }
+
+    // Check if file was uploaded
+    if (!req.files || !req.files.avatar) {
+      return res.status(400).json({
+        success: false,
+        message: 'No avatar file provided'
+      });
+    }
+
+    const avatarFile = req.files.avatar;
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(avatarFile.mimetype)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid file type. Only JPG, PNG, and WEBP are allowed.'
+      });
+    }
+
+    // Validate file size (2MB max)
+    const maxSize = 2 * 1024 * 1024; // 2MB
+    if (avatarFile.size > maxSize) {
+      return res.status(400).json({
+        success: false,
+        message: 'File too large. Maximum size is 2MB.'
+      });
+    }
+
+    // Generate unique filename
+    const fileExt = avatarFile.name.split('.').pop();
+    const fileName = `${id}-${Date.now()}.${fileExt}`;
+    const filePath = `contact-avatars/${fileName}`;
+
+    // Upload to Supabase Storage
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('crmimage')
+      .upload(filePath, avatarFile.data, {
+        contentType: avatarFile.mimetype,
+        upsert: true,
+      });
+
+    if (uploadError) {
+      console.error('Upload error:', uploadError);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to upload avatar'
+      });
+    }
+
+    // Get public URL
+    const { data: publicUrlData } = supabase.storage
+      .from('crmimage')
+      .getPublicUrl(filePath);
+
+    const avatarUrl = publicUrlData.publicUrl;
+
+    // Update contact with avatar URL
+    const { data: updatedContact, error: updateError } = await supabase
+      .from('contacts')
+      .update({ avatar_url: avatarUrl })
+      .eq('id', id)
+      .eq('organization_id', organizationId)
+      .select('id, name, avatar_url')
+      .single();
+
+    if (updateError) {
+      console.error('Update avatar URL error:', updateError);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to update avatar URL'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Avatar uploaded successfully',
+      avatar_url: updatedContact.avatar_url
+    });
+  } catch (error) {
+    console.error('Upload avatar error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to upload avatar',
       error: error.message
     });
   }
