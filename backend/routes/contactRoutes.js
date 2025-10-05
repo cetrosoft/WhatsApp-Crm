@@ -53,14 +53,15 @@ router.get('/', async (req, res) => {
         companies(id, name),
         country:countries(id, code, name_en, name_ar, phone_code, flag_emoji),
         status:contact_statuses(id, slug, name_en, name_ar, color),
-        assigned_user:users!contacts_assigned_to_fkey(id, full_name)
+        assigned_user:users!contacts_assigned_to_fkey(id, full_name),
+        contact_tags(tag_id, tags(id, name_en, name_ar, color))
       `, { count: 'exact' })
       .eq('organization_id', organizationId)
       .order('created_at', { ascending: false });
 
     // Apply filters
     if (search) {
-      query = query.or(`name.ilike.%${search}%,phone.ilike.%${search}%,email.ilike.%${search}%,tags.cs.{${search}}`);
+      query = query.or(`name.ilike.%${search}%,phone.ilike.%${search}%,email.ilike.%${search}%`);
     }
 
     if (status) {
@@ -83,8 +84,14 @@ router.get('/', async (req, res) => {
     }
 
     if (tags) {
-      const tagArray = tags.split(',');
-      query = query.contains('tags', tagArray);
+      const tagIds = tags.split(',');
+      // Filter contacts that have ANY of the specified tags
+      query = query.in('id',
+        supabase
+          .from('contact_tags')
+          .select('contact_id')
+          .in('tag_id', tagIds)
+      );
     }
 
     if (assigned_to) {
@@ -237,7 +244,7 @@ router.post('/', async (req, res) => {
       status_id,
       country_id,
       lead_source,
-      tags = [],
+      tag_ids = [],
       address,
       city,
       notes,
@@ -294,7 +301,6 @@ router.post('/', async (req, res) => {
         status_id: finalStatusId,
         country_id,
         lead_source,
-        tags,
         address,
         city,
         notes,
@@ -311,10 +317,38 @@ router.post('/', async (req, res) => {
 
     if (error) throw error;
 
+    // Create contact-tag relationships
+    if (tag_ids && tag_ids.length > 0) {
+      const tagRelations = tag_ids.map(tag_id => ({
+        contact_id: data.id,
+        tag_id
+      }));
+
+      const { error: tagError } = await supabase
+        .from('contact_tags')
+        .insert(tagRelations);
+
+      if (tagError) console.error('Error creating tag relations:', tagError);
+    }
+
+    // Fetch contact with tags
+    const { data: contactWithTags } = await supabase
+      .from('contacts')
+      .select(`
+        *,
+        companies(id, name),
+        country:countries(id, code, name_en, name_ar, phone_code, flag_emoji),
+        status:contact_statuses(id, slug, name_en, name_ar, color),
+        assigned_user:users!contacts_assigned_to_fkey(id, full_name),
+        contact_tags(tag_id, tags(id, name_en, name_ar, color))
+      `)
+      .eq('id', data.id)
+      .single();
+
     res.status(201).json({
       success: true,
       message: 'Contact created successfully',
-      data
+      data: contactWithTags || data
     });
   } catch (error) {
     console.error('Error creating contact:', error);
@@ -343,7 +377,7 @@ router.put('/:id', async (req, res) => {
       status_id,
       country_id,
       lead_source,
-      tags,
+      tag_ids,
       address,
       city,
       notes,
@@ -397,7 +431,6 @@ router.put('/:id', async (req, res) => {
     if (status_id !== undefined) updateData.status_id = status_id;
     if (country_id !== undefined) updateData.country_id = country_id;
     if (lead_source !== undefined) updateData.lead_source = lead_source;
-    if (tags !== undefined) updateData.tags = tags;
     if (address !== undefined) updateData.address = address;
     if (city !== undefined) updateData.city = city;
     if (notes !== undefined) updateData.notes = notes;
@@ -419,10 +452,47 @@ router.put('/:id', async (req, res) => {
 
     if (error) throw error;
 
+    // Update contact-tag relationships if tag_ids provided
+    if (tag_ids !== undefined) {
+      // Delete existing tag relations
+      await supabase
+        .from('contact_tags')
+        .delete()
+        .eq('contact_id', id);
+
+      // Create new tag relations
+      if (tag_ids.length > 0) {
+        const tagRelations = tag_ids.map(tag_id => ({
+          contact_id: id,
+          tag_id
+        }));
+
+        const { error: tagError } = await supabase
+          .from('contact_tags')
+          .insert(tagRelations);
+
+        if (tagError) console.error('Error updating tag relations:', tagError);
+      }
+    }
+
+    // Fetch contact with tags
+    const { data: contactWithTags } = await supabase
+      .from('contacts')
+      .select(`
+        *,
+        companies(id, name),
+        country:countries(id, code, name_en, name_ar, phone_code, flag_emoji),
+        status:contact_statuses(id, slug, name_en, name_ar, color),
+        assigned_user:users!contacts_assigned_to_fkey(id, full_name),
+        contact_tags(tag_id, tags(id, name_en, name_ar, color))
+      `)
+      .eq('id', id)
+      .single();
+
     res.json({
       success: true,
       message: 'Contact updated successfully',
-      data
+      data: contactWithTags || data
     });
   } catch (error) {
     console.error('Error updating contact:', error);

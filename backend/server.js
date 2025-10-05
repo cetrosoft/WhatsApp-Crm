@@ -20,6 +20,8 @@ import packageRoutes from './routes/packageRoutes.js';
 import organizationRoutes from './routes/organizationRoutes.js';
 import countriesRoutes from './routes/countriesRoutes.js';
 import statusesRoutes from './routes/statusesRoutes.js';
+import tagRoutes from './routes/tagRoutes.js';
+import leadSourcesRoutes from './routes/leadSourcesRoutes.js';
 
 // CRM Routes
 import contactRoutes from './routes/contactRoutes.js';
@@ -60,6 +62,8 @@ app.use('/api/packages', packageRoutes);
 app.use('/api/organization', organizationRoutes);
 app.use('/api/countries', countriesRoutes);
 app.use('/api/statuses', statusesRoutes);
+app.use('/api/tags', tagRoutes);
+app.use('/api/lead-sources', leadSourcesRoutes);
 
 // CRM Routes
 app.use('/api/crm/contacts', contactRoutes);
