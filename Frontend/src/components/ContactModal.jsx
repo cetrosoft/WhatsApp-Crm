@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { contactAPI, countryAPI, statusAPI, userAPI, tagAPI, leadSourceAPI } from '../services/api';
+import { contactAPI, countryAPI, statusAPI, userAPI, tagAPI, leadSourceAPI, companyAPI } from '../services/api';
 import { X, Upload, User, Trash2, Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
 import SearchableSelect from './SearchableSelect';
@@ -19,6 +19,7 @@ const ContactModal = ({ isOpen, onClose, contact, onSave }) => {
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
+    phone_country_code: '+966',
     email: '',
     position: '',
     status_id: '',
@@ -44,6 +45,7 @@ const ContactModal = ({ isOpen, onClose, contact, onSave }) => {
   const [users, setUsers] = useState([]);
   const [tags, setTags] = useState([]); // All available tags
   const [leadSources, setLeadSources] = useState([]); // All available lead sources
+  const [companies, setCompanies] = useState([]); // All available companies
 
   // Load lookup data
   useEffect(() => {
@@ -58,6 +60,7 @@ const ContactModal = ({ isOpen, onClose, contact, onSave }) => {
       setFormData({
         name: contact.name || '',
         phone: contact.phone || '',
+        phone_country_code: contact.phone_country_code || '+966',
         email: contact.email || '',
         position: contact.position || '',
         status_id: contact.status_id || '',
@@ -76,6 +79,7 @@ const ContactModal = ({ isOpen, onClose, contact, onSave }) => {
       setFormData({
         name: '',
         phone: '',
+        phone_country_code: '+966',
         email: '',
         position: '',
         status_id: '',
@@ -98,12 +102,13 @@ const ContactModal = ({ isOpen, onClose, contact, onSave }) => {
    */
   const loadLookupData = async () => {
     try {
-      const [countriesRes, statusesRes, usersRes, tagsRes, leadSourcesRes] = await Promise.all([
+      const [countriesRes, statusesRes, usersRes, tagsRes, leadSourcesRes, companiesRes] = await Promise.all([
         countryAPI.getCountries(),
         statusAPI.getContactStatuses(),
         userAPI.getUsers(),
         tagAPI.getTags(),
         leadSourceAPI.getLeadSources(),
+        companyAPI.getCompanies(),
       ]);
 
       setCountries(countriesRes.countries || []);
@@ -111,6 +116,7 @@ const ContactModal = ({ isOpen, onClose, contact, onSave }) => {
       setUsers(usersRes.data || usersRes.users || []);
       setTags(tagsRes.tags || []);
       setLeadSources(leadSourcesRes.leadSources || []);
+      setCompanies(companiesRes.companies || []);
     } catch (error) {
       console.error('Error loading lookup data:', error);
       toast.error('Failed to load form data');
@@ -407,20 +413,51 @@ const ContactModal = ({ isOpen, onClose, contact, onSave }) => {
                     />
                   </div>
 
-                  {/* Phone */}
+                  {/* Phone with Country Code */}
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1">
                       {t('phone')} <span className="text-red-500">*</span>
                     </label>
-                    <input
-                      type="tel"
-                      name="phone"
-                      value={formData.phone}
-                      onChange={handleChange}
-                      required
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-                      placeholder="+1234567890"
-                    />
+                    <div className={`flex gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                      {/* Country Code Dropdown with Flag Display */}
+                      <div className="relative">
+                        {/* Flag Display as Image */}
+                        <div className="absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none z-10">
+                          {(() => {
+                            const selectedCountry = countries.find(c => c.phone_code === formData.phone_country_code);
+                            if (!selectedCountry || !selectedCountry.code) return null;
+                            return (
+                              <span
+                                className={`fi fi-${selectedCountry.code.toLowerCase()} text-lg`}
+                                style={{ fontSize: '1.25rem', lineHeight: 1 }}
+                              />
+                            );
+                          })()}
+                        </div>
+                        <select
+                          name="phone_country_code"
+                          value={formData.phone_country_code}
+                          onChange={handleChange}
+                          className="w-28 pl-10 pr-2 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors appearance-none"
+                        >
+                          {countries.map((country) => (
+                            <option key={country.id} value={country.phone_code}>
+                              {country.code} {country.phone_code}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      {/* Phone Number Input */}
+                      <input
+                        type="tel"
+                        name="phone"
+                        value={formData.phone}
+                        onChange={handleChange}
+                        required
+                        className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                        placeholder="123456789"
+                      />
+                    </div>
                   </div>
 
                   {/* Email */}
@@ -450,6 +487,21 @@ const ContactModal = ({ isOpen, onClose, contact, onSave }) => {
                       onChange={handleChange}
                       className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
                       placeholder={t('position')}
+                    />
+                  </div>
+
+                  {/* Company */}
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      {t('company')}
+                    </label>
+                    <SearchableSelect
+                      value={formData.company_id}
+                      onChange={(value) => setFormData(prev => ({ ...prev, company_id: value || '' }))}
+                      options={companies}
+                      placeholder={t('selectCompany')}
+                      displayKey="name"
+                      valueKey="id"
                     />
                   </div>
 
@@ -542,16 +594,10 @@ const ContactModal = ({ isOpen, onClose, contact, onSave }) => {
                     <SearchableSelect
                       value={formData.country_id}
                       onChange={(value) => setFormData(prev => ({ ...prev, country_id: value || '' }))}
-                      options={[
-                        { label: t('selectCountry'), value: '' },
-                        ...countries.map(country => ({
-                          label: `${country.flag_emoji} ${isRTL ? country.name_ar : country.name_en}`,
-                          value: country.id
-                        }))
-                      ]}
+                      options={countries}
                       placeholder={t('selectCountry')}
-                      displayKey="label"
-                      valueKey="value"
+                      displayKey={isRTL ? 'name_ar' : 'name_en'}
+                      valueKey="id"
                     />
                   </div>
 

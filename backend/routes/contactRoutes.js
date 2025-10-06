@@ -228,6 +228,7 @@ router.get('/:id', async (req, res) => {
  * Body:
  * - name: string (required)
  * - phone: string (required, unique per org)
+ * - phone_country_code: string (optional, default: '+966')
  * - email: string (optional)
  * - company_id: uuid (optional)
  * - position: string (optional)
@@ -245,6 +246,7 @@ router.post('/', async (req, res) => {
     const {
       name,
       phone,
+      phone_country_code = '+966',
       email,
       company_id,
       position,
@@ -302,6 +304,7 @@ router.post('/', async (req, res) => {
         created_by: userId,
         name,
         phone,
+        phone_country_code,
         email,
         company_id,
         position,
@@ -378,6 +381,7 @@ router.put('/:id', async (req, res) => {
     const {
       name,
       phone,
+      phone_country_code,
       email,
       company_id,
       position,
@@ -432,6 +436,7 @@ router.put('/:id', async (req, res) => {
     const updateData = {};
     if (name !== undefined) updateData.name = name;
     if (phone !== undefined) updateData.phone = phone;
+    if (phone_country_code !== undefined) updateData.phone_country_code = phone_country_code;
     if (email !== undefined) updateData.email = email;
     if (company_id !== undefined) updateData.company_id = company_id;
     if (position !== undefined) updateData.position = position;

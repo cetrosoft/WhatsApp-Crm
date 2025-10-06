@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { contactAPI, statusAPI, userAPI, tagAPI } from '../services/api';
+import { contactAPI, statusAPI, userAPI, tagAPI, companyAPI } from '../services/api';
 import { Users, Plus, Search, Filter, Edit, Trash2, MoreVertical, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ContactModal from '../components/ContactModal';
@@ -31,11 +31,13 @@ const Contacts = () => {
   const [statusFilter, setStatusFilter] = useState('');
   const [assignedFilter, setAssignedFilter] = useState('');
   const [tagFilter, setTagFilter] = useState([]);
+  const [companyFilter, setCompanyFilter] = useState('');
 
   // Lookup data
   const [statuses, setStatuses] = useState([]);
   const [users, setUsers] = useState([]);
   const [tags, setTags] = useState([]);
+  const [companies, setCompanies] = useState([]);
 
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -56,22 +58,24 @@ const Contacts = () => {
    */
   useEffect(() => {
     loadContacts();
-  }, [pagination.page, pagination.limit, searchTerm, statusFilter, assignedFilter, tagFilter]);
+  }, [pagination.page, pagination.limit, searchTerm, statusFilter, assignedFilter, tagFilter, companyFilter]);
 
   /**
-   * Load statuses, users, and tags
+   * Load statuses, users, tags, and companies
    */
   const loadLookupData = async () => {
     try {
-      const [statusesRes, usersRes, tagsRes] = await Promise.all([
+      const [statusesRes, usersRes, tagsRes, companiesRes] = await Promise.all([
         statusAPI.getContactStatuses(),
         userAPI.getUsers(),
         tagAPI.getTags(),
+        companyAPI.getCompanies(),
       ]);
 
       setStatuses(statusesRes.statuses || []);
       setUsers(usersRes.data || usersRes.users || []);
       setTags(tagsRes.tags || []);
+      setCompanies(companiesRes.companies || []);
     } catch (error) {
       console.error('Error loading lookup data:', error);
     }
@@ -93,6 +97,7 @@ const Contacts = () => {
       if (statusFilter) params.status = statusFilter;
       if (assignedFilter) params.assigned_to = assignedFilter;
       if (tagFilter.length > 0) params.tags = tagFilter.join(',');
+      if (companyFilter) params.company_id = companyFilter;
 
       const response = await contactAPI.getContacts(params);
 
@@ -201,17 +206,12 @@ const Contacts = () => {
   };
 
   /**
-   * Get country flag and name
+   * Get country name
    */
   const getCountryDisplay = (country) => {
     if (!country) return '-';
     const name = isRTL ? country.name_ar : country.name_en;
-    return (
-      <span className="flex items-center gap-1">
-        <span>{country.flag_emoji}</span>
-        <span>{name}</span>
-      </span>
-    );
+    return name;
   };
 
   return (
@@ -238,7 +238,7 @@ const Contacts = () => {
 
       {/* Search and Filters */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-4">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
           {/* Search */}
           <div className="md:col-span-1">
             <div className="relative">
@@ -265,6 +265,21 @@ const Contacts = () => {
               }}
               options={tags}
               placeholder={t('allTags')}
+            />
+          </div>
+
+          {/* Company Filter */}
+          <div>
+            <SearchableSelect
+              value={companyFilter}
+              onChange={(value) => {
+                setCompanyFilter(value || '');
+                setPagination({ ...pagination, page: 1 });
+              }}
+              options={companies}
+              placeholder={t('allCompanies')}
+              displayKey="name"
+              valueKey="id"
             />
           </div>
 
@@ -316,6 +331,7 @@ const Contacts = () => {
               onClick={() => {
                 setSearchTerm('');
                 setTagFilter([]);
+                setCompanyFilter('');
                 setStatusFilter('');
                 setAssignedFilter('');
                 setPagination({ ...pagination, page: 1 });
@@ -401,8 +417,8 @@ const Contacts = () => {
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-4 text-sm text-gray-900">
-                        {contact.phone}
+                      <td className="px-4 py-4 text-sm text-gray-900" dir="ltr">
+                        {contact.phone_country_code && contact.phone ? `${contact.phone_country_code} ${contact.phone}` : contact.phone || '-'}
                       </td>
                       <td className="px-4 py-4 text-sm text-gray-900">
                         <span className="truncate block max-w-[200px]">{contact.email || '-'}</span>

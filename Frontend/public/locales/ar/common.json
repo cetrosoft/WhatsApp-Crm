@@ -234,5 +234,7 @@
   "listView": "عرض القائمة",
   "noResults": "لم يتم العثور على نتائج",
   "tryDifferentFilters": "جرب تعديل الفلاتر أو استعلام البحث",
-  "contact": "جهة الاتصال"
+  "contact": "جهة الاتصال",
+  "selectCompany": "اختر الشركة",
+  "allCompanies": "جميع الشركات"
 }

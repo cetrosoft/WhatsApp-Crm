@@ -234,5 +234,7 @@
   "listView": "List View",
   "noResults": "No results found",
   "tryDifferentFilters": "Try adjusting your filters or search query",
-  "contact": "Contact"
+  "contact": "Contact",
+  "selectCompany": "Select Company",
+  "allCompanies": "All Companies"
 }
