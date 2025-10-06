@@ -283,6 +283,244 @@ export const organizationAPI = {
 /**
  * Token management utilities
  */
+/**
+ * Contact Management API
+ */
+export const contactAPI = {
+  /**
+   * Get all contacts with pagination and filters
+   */
+  getContacts: async (params = {}) => {
+    const queryParams = new URLSearchParams(params).toString();
+    return await apiCall(`/api/crm/contacts?${queryParams}`);
+  },
+
+  /**
+   * Get single contact by ID
+   */
+  getContact: async (id) => {
+    return await apiCall(`/api/crm/contacts/${id}`);
+  },
+
+  /**
+   * Create new contact
+   */
+  createContact: async (data) => {
+    return await apiCall('/api/crm/contacts', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  /**
+   * Update contact
+   */
+  updateContact: async (id, data) => {
+    return await apiCall(`/api/crm/contacts/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  /**
+   * Delete contact
+   */
+  deleteContact: async (id, permanent = false) => {
+    return await apiCall(`/api/crm/contacts/${id}?permanent=${permanent}`, {
+      method: 'DELETE',
+    });
+  },
+
+  /**
+   * Upload contact avatar
+   */
+  uploadAvatar: async (id, file) => {
+    const formData = new FormData();
+    formData.append('avatar', file);
+
+    const token = getToken();
+    const headers = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    try {
+      const response = await fetch(`${API_URL}/api/crm/contacts/${id}/avatar`, {
+        method: 'POST',
+        headers,
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to upload avatar');
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Upload avatar error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get contact statistics
+   */
+  getStats: async () => {
+    return await apiCall('/api/crm/contacts/stats');
+  },
+};
+
+/**
+ * Country Lookup API
+ */
+export const countryAPI = {
+  /**
+   * Get all countries
+   */
+  getCountries: async () => {
+    return await apiCall('/api/countries');
+  },
+
+  /**
+   * Get single country by code
+   */
+  getCountry: async (code) => {
+    return await apiCall(`/api/countries/${code}`);
+  },
+};
+
+/**
+ * Status Lookup API
+ */
+export const statusAPI = {
+  /**
+   * Get contact statuses
+   */
+  getContactStatuses: async () => {
+    return await apiCall('/api/statuses/contacts');
+  },
+
+  /**
+   * Get company statuses
+   */
+  getCompanyStatuses: async () => {
+    return await apiCall('/api/statuses/companies');
+  },
+
+  /**
+   * Create a new contact status
+   */
+  createContactStatus: async (data) => {
+    return await apiCall('/api/statuses/contacts', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  /**
+   * Update a contact status
+   */
+  updateContactStatus: async (id, data) => {
+    return await apiCall(`/api/statuses/contacts/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  /**
+   * Delete a contact status (soft delete)
+   */
+  deleteContactStatus: async (id) => {
+    return await apiCall(`/api/statuses/contacts/${id}`, {
+      method: 'DELETE',
+    });
+  },
+};
+
+/**
+ * Tags API
+ */
+export const tagAPI = {
+  /**
+   * Get all tags for organization
+   */
+  getTags: async () => {
+    return await apiCall('/api/tags');
+  },
+
+  /**
+   * Create a new tag
+   */
+  createTag: async (data) => {
+    return await apiCall('/api/tags', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  /**
+   * Update a tag
+   */
+  updateTag: async (id, data) => {
+    return await apiCall(`/api/tags/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  /**
+   * Delete a tag
+   */
+  deleteTag: async (id) => {
+    return await apiCall(`/api/tags/${id}`, {
+      method: 'DELETE',
+    });
+  },
+};
+
+/**
+ * Lead Sources API
+ */
+export const leadSourceAPI = {
+  /**
+   * Get all lead sources
+   */
+  getLeadSources: async () => {
+    return await apiCall('/api/lead-sources');
+  },
+
+  /**
+   * Create a new lead source
+   */
+  createLeadSource: async (data) => {
+    return await apiCall('/api/lead-sources', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  /**
+   * Update a lead source
+   */
+  updateLeadSource: async (id, data) => {
+    return await apiCall(`/api/lead-sources/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  /**
+   * Delete a lead source (soft delete)
+   */
+  deleteLeadSource: async (id) => {
+    return await apiCall(`/api/lead-sources/${id}`, {
+      method: 'DELETE',
+    });
+  },
+};
+
 export const tokenUtils = {
   getToken,
   setToken,
@@ -295,5 +533,10 @@ export default {
   userAPI,
   packageAPI,
   organizationAPI,
+  contactAPI,
+  countryAPI,
+  statusAPI,
+  tagAPI,
+  leadSourceAPI,
   tokenUtils,
 };

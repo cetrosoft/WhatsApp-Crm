@@ -22,6 +22,8 @@ import Campaigns from "./pages/Campaigns";
 import Settings from "./pages/Settings";
 import Inbox from "./pages/Inbox";
 import AccountSettings from "./pages/AccountSettings";
+import Contacts from "./pages/Contacts";
+import CRMSettings from "./pages/CRMSettings";
 import menuConfig from "./menuConfig";
 
 // Map between component names and actual code
@@ -40,6 +42,10 @@ const MainLayout = () => {
       <Routes>
         {/* Dashboard */}
         <Route path="/dashboard" element={<Dashboard />} />
+
+        {/* CRM */}
+        <Route path="/crm/contacts" element={<Contacts />} />
+        <Route path="/crm/settings" element={<CRMSettings />} />
 
         {/* Old routes - will be migrated to new structure */}
         <Route path="/campaigns" element={<Campaigns />} />

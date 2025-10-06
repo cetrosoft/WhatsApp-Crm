@@ -1,46 +1,45 @@
 /**
- * Account Settings Page
- * Unified portal for organization, team, subscription, and preferences
+ * CRM Settings Page
+ * Centralized configuration for CRM module
+ * Tags, Statuses, Lead Sources, Pipelines, etc.
  */
 
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Building2, Users, CreditCard, Settings as SettingsIcon } from 'lucide-react';
+import { Tags, ListChecks, Target, Workflow } from 'lucide-react';
+import CRMSettingsTab from '../components/AccountSettings/CRMSettingsTab';
+import ContactStatusesTab from '../components/AccountSettings/ContactStatusesTab';
+import LeadSourcesTab from '../components/AccountSettings/LeadSourcesTab';
 
-// Tab Components
-import OrganizationTab from '../components/AccountSettings/OrganizationTab';
-import TeamTab from '../components/AccountSettings/TeamTab';
-import SubscriptionTab from '../components/AccountSettings/SubscriptionTab';
-import PreferencesTab from '../components/AccountSettings/PreferencesTab';
-
-const AccountSettings = () => {
-  const { t } = useTranslation(['common', 'settings']);
-  const [activeTab, setActiveTab] = useState('organization');
+const CRMSettings = () => {
+  const { t, i18n } = useTranslation(['common', 'settings']);
+  const isRTL = i18n.language === 'ar';
+  const [activeTab, setActiveTab] = useState('tags');
 
   const tabs = [
     {
-      id: 'organization',
-      name: t('settings:organization'),
-      icon: Building2,
-      component: OrganizationTab,
+      id: 'tags',
+      name: t('tags'),
+      icon: Tags,
+      component: CRMSettingsTab,
     },
     {
-      id: 'team',
-      name: t('settings:team'),
-      icon: Users,
-      component: TeamTab,
+      id: 'statuses',
+      name: t('contactStatuses'),
+      icon: ListChecks,
+      component: ContactStatusesTab,
     },
     {
-      id: 'subscription',
-      name: t('settings:subscription'),
-      icon: CreditCard,
-      component: SubscriptionTab,
+      id: 'lead-sources',
+      name: t('leadSources'),
+      icon: Target,
+      component: LeadSourcesTab,
     },
     {
-      id: 'preferences',
-      name: t('settings:preferences'),
-      icon: SettingsIcon,
-      component: PreferencesTab,
+      id: 'pipelines',
+      name: t('salesPipelines'),
+      icon: Workflow,
+      component: () => <div className="p-6 text-gray-500">{t('salesPipelines')} - {t('comingSoon')}</div>,
     },
   ];
 
@@ -49,12 +48,12 @@ const AccountSettings = () => {
   return (
     <div className="max-w-7xl mx-auto">
       {/* Header */}
-      <div className="mb-8">
+      <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-900">
-          {t('settings:accountSettings')}
+          {t('crmSettingsTitle')}
         </h1>
         <p className="mt-2 text-gray-600">
-          {t('settings:manageYourAccount')}
+          {t('crmSettingsDescription')}
         </p>
       </div>
 
@@ -96,4 +95,4 @@ const AccountSettings = () => {
   );
 };
 
-export default AccountSettings;
+export default CRMSettings;

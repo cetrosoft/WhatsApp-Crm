@@ -85,13 +85,20 @@ router.get('/', async (req, res) => {
 
     if (tags) {
       const tagIds = tags.split(',');
-      // Filter contacts that have ANY of the specified tags
-      query = query.in('id',
-        supabase
-          .from('contact_tags')
-          .select('contact_id')
-          .in('tag_id', tagIds)
-      );
+
+      // First, get contact IDs that have ANY of the specified tags
+      const { data: contactTagData } = await supabase
+        .from('contact_tags')
+        .select('contact_id')
+        .in('tag_id', tagIds);
+
+      if (contactTagData && contactTagData.length > 0) {
+        const contactIds = contactTagData.map(ct => ct.contact_id);
+        query = query.in('id', contactIds);
+      } else {
+        // No contacts found with these tags, return empty result
+        query = query.eq('id', '00000000-0000-0000-0000-000000000000'); // No match
+      }
     }
 
     if (assigned_to) {
