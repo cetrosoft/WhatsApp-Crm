@@ -848,10 +848,10 @@ router.post('/:id/avatar', async (req, res) => {
       });
     }
 
-    // Generate unique filename
+    // Generate unique filename with organization folder
     const fileExt = avatarFile.name.split('.').pop();
     const fileName = `${id}-${Date.now()}.${fileExt}`;
-    const filePath = `contact-avatars/${fileName}`;
+    const filePath = `${organizationId}/contact-avatars/${fileName}`;
 
     // Upload to Supabase Storage
     const { data: uploadData, error: uploadError } = await supabase.storage

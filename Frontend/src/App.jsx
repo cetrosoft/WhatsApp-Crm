@@ -24,6 +24,8 @@ import Inbox from "./pages/Inbox";
 import AccountSettings from "./pages/AccountSettings";
 import Contacts from "./pages/Contacts";
 import CRMSettings from "./pages/CRMSettings";
+import Segments from "./pages/Segments";
+import Companies from "./pages/Companies";
 import menuConfig from "./menuConfig";
 
 // Map between component names and actual code
@@ -45,6 +47,8 @@ const MainLayout = () => {
 
         {/* CRM */}
         <Route path="/crm/contacts" element={<Contacts />} />
+        <Route path="/crm/companies" element={<Companies />} />
+        <Route path="/crm/segmentation" element={<Segments />} />
         <Route path="/crm/settings" element={<CRMSettings />} />
 
         {/* Old routes - will be migrated to new structure */}

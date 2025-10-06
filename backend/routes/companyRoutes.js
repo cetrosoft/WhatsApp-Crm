@@ -108,7 +108,7 @@ router.get('/', async (req, res) => {
 
     res.json({
       success: true,
-      data: companiesWithCounts,
+      companies: companiesWithCounts,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -293,17 +293,20 @@ router.put('/:id', async (req, res) => {
     const {
       name,
       industry,
-      company_size,
+      employee_size,
       website,
       phone,
       email,
       address,
       city,
-      country,
-      status,
+      country_id,
+      status_id,
       tags,
       notes,
-      assigned_to
+      assigned_to,
+      tax_id,
+      commercial_id,
+      legal_docs
     } = req.body;
 
     // Check if company exists
@@ -327,17 +330,20 @@ router.put('/:id', async (req, res) => {
     const updateData = {};
     if (name !== undefined) updateData.name = name;
     if (industry !== undefined) updateData.industry = industry;
-    if (company_size !== undefined) updateData.company_size = company_size;
+    if (employee_size !== undefined) updateData.employee_size = employee_size;
     if (website !== undefined) updateData.website = website;
     if (phone !== undefined) updateData.phone = phone;
     if (email !== undefined) updateData.email = email;
     if (address !== undefined) updateData.address = address;
     if (city !== undefined) updateData.city = city;
-    if (country !== undefined) updateData.country = country;
-    if (status !== undefined) updateData.status = status;
+    if (country_id !== undefined) updateData.country_id = country_id;
+    if (status_id !== undefined) updateData.status_id = status_id;
     if (tags !== undefined) updateData.tags = tags;
     if (notes !== undefined) updateData.notes = notes;
     if (assigned_to !== undefined) updateData.assigned_to = assigned_to;
+    if (tax_id !== undefined) updateData.tax_id = tax_id;
+    if (commercial_id !== undefined) updateData.commercial_id = commercial_id;
+    if (legal_docs !== undefined) updateData.legal_docs = legal_docs;
 
     const { data, error } = await supabase
       .from('companies')
@@ -362,6 +368,275 @@ router.put('/:id', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to update company',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/crm/companies/:id/logo
+ * Upload company logo
+ */
+router.post('/:id/logo', async (req, res) => {
+  try {
+    const { organizationId } = req.user;
+    const { id } = req.params;
+
+    // Check if company exists
+    const { data: existing, error: checkError } = await supabase
+      .from('companies')
+      .select('id')
+      .eq('id', id)
+      .eq('organization_id', organizationId)
+      .maybeSingle();
+
+    if (checkError) throw checkError;
+
+    if (!existing) {
+      return res.status(404).json({
+        success: false,
+        message: 'Company not found'
+      });
+    }
+
+    // Check if file was uploaded
+    if (!req.files || !req.files.logo) {
+      return res.status(400).json({
+        success: false,
+        message: 'No logo file provided'
+      });
+    }
+
+    const logoFile = req.files.logo;
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(logoFile.mimetype)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid file type. Only images are allowed.'
+      });
+    }
+
+    // Validate file size (5MB max)
+    const maxSize = 5 * 1024 * 1024;
+    if (logoFile.size > maxSize) {
+      return res.status(400).json({
+        success: false,
+        message: 'File too large. Maximum size is 5MB.'
+      });
+    }
+
+    // Upload to Supabase Storage with organization folder
+    const fileExt = logoFile.name.split('.').pop();
+    const fileName = `${id}-${Date.now()}.${fileExt}`;
+    const filePath = `${organizationId}/company-logos/${fileName}`;
+
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('crmimage')
+      .upload(filePath, logoFile.data, {
+        contentType: logoFile.mimetype,
+        upsert: true
+      });
+
+    if (uploadError) throw uploadError;
+
+    // Get public URL
+    const { data: publicUrlData } = supabase.storage
+      .from('crmimage')
+      .getPublicUrl(filePath);
+
+    const publicUrl = publicUrlData.publicUrl;
+
+    // Update company with logo URL
+    const { data: updatedCompany, error: updateError } = await supabase
+      .from('companies')
+      .update({ logo_url: publicUrl })
+      .eq('id', id)
+      .eq('organization_id', organizationId)
+      .select()
+      .single();
+
+    if (updateError) throw updateError;
+
+    res.json({
+      success: true,
+      message: 'Logo uploaded successfully',
+      logo_url: publicUrl,
+      data: updatedCompany
+    });
+  } catch (error) {
+    console.error('Error uploading logo:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to upload logo',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/crm/companies/:id/document
+ * Upload legal document
+ */
+router.post('/:id/document', async (req, res) => {
+  try {
+    const { organizationId } = req.user;
+    const { id } = req.params;
+
+    // Check if company exists
+    const { data: existing, error: checkError } = await supabase
+      .from('companies')
+      .select('id, legal_docs')
+      .eq('id', id)
+      .eq('organization_id', organizationId)
+      .maybeSingle();
+
+    if (checkError) throw checkError;
+
+    if (!existing) {
+      return res.status(404).json({
+        success: false,
+        message: 'Company not found'
+      });
+    }
+
+    // Check if file was uploaded
+    if (!req.files || !req.files.document) {
+      return res.status(400).json({
+        success: false,
+        message: 'No document file provided'
+      });
+    }
+
+    const docFile = req.files.document;
+
+    // Validate file size (10MB max)
+    const maxSize = 10 * 1024 * 1024;
+    if (docFile.size > maxSize) {
+      return res.status(400).json({
+        success: false,
+        message: 'File too large. Maximum size is 10MB.'
+      });
+    }
+
+    // Upload to Supabase Storage with organization folder
+    const fileExt = docFile.name.split('.').pop();
+    const fileName = `${id}-${Date.now()}.${fileExt}`;
+    const filePath = `${organizationId}/company-documents/${fileName}`;
+
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('crmimage')
+      .upload(filePath, docFile.data, {
+        contentType: docFile.mimetype,
+        upsert: false
+      });
+
+    if (uploadError) throw uploadError;
+
+    // Get public URL
+    const { data: publicUrlData } = supabase.storage
+      .from('crmimage')
+      .getPublicUrl(filePath);
+
+    const publicUrl = publicUrlData.publicUrl;
+
+    // Create document object
+    const newDocument = {
+      id: uploadData.path,
+      name: docFile.name,
+      url: publicUrl,
+      uploaded_at: new Date().toISOString()
+    };
+
+    // Update company with new document
+    const currentDocs = existing.legal_docs || [];
+    const updatedDocs = [...currentDocs, newDocument];
+
+    const { data: updatedCompany, error: updateError } = await supabase
+      .from('companies')
+      .update({ legal_docs: updatedDocs })
+      .eq('id', id)
+      .eq('organization_id', organizationId)
+      .select()
+      .single();
+
+    if (updateError) throw updateError;
+
+    res.json({
+      success: true,
+      message: 'Document uploaded successfully',
+      document: newDocument,
+      data: updatedCompany
+    });
+  } catch (error) {
+    console.error('Error uploading document:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to upload document',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * DELETE /api/crm/companies/:id/document/:documentId
+ * Delete legal document
+ */
+router.delete('/:id/document/:documentId', async (req, res) => {
+  try {
+    const { organizationId } = req.user;
+    const { id, documentId } = req.params;
+
+    // Check if company exists
+    const { data: existing, error: checkError } = await supabase
+      .from('companies')
+      .select('id, legal_docs')
+      .eq('id', id)
+      .eq('organization_id', organizationId)
+      .maybeSingle();
+
+    if (checkError) throw checkError;
+
+    if (!existing) {
+      return res.status(404).json({
+        success: false,
+        message: 'Company not found'
+      });
+    }
+
+    // Remove document from array
+    const currentDocs = existing.legal_docs || [];
+    const updatedDocs = currentDocs.filter(doc => doc.id !== documentId);
+
+    // Delete from storage
+    const { error: deleteError } = await supabase.storage
+      .from('crmimage')
+      .remove([documentId]);
+
+    if (deleteError) console.error('Error deleting file from storage:', deleteError);
+
+    // Update company
+    const { data: updatedCompany, error: updateError } = await supabase
+      .from('companies')
+      .update({ legal_docs: updatedDocs })
+      .eq('id', id)
+      .eq('organization_id', organizationId)
+      .select()
+      .single();
+
+    if (updateError) throw updateError;
+
+    res.json({
+      success: true,
+      message: 'Document deleted successfully',
+      data: updatedCompany
+    });
+  } catch (error) {
+    console.error('Error deleting document:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete document',
       error: error.message
     });
   }

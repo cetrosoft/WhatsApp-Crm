@@ -521,6 +521,201 @@ export const leadSourceAPI = {
   },
 };
 
+/**
+ * Segments API
+ */
+export const segmentAPI = {
+  /**
+   * Get all segments
+   */
+  getSegments: async () => {
+    return await apiCall('/api/segments');
+  },
+
+  /**
+   * Get single segment
+   */
+  getSegment: async (id) => {
+    return await apiCall(`/api/segments/${id}`);
+  },
+
+  /**
+   * Get contacts in segment
+   */
+  getSegmentContacts: async (id, page = 1, limit = 20) => {
+    return await apiCall(`/api/segments/${id}/contacts?page=${page}&limit=${limit}`);
+  },
+
+  /**
+   * Create new segment
+   */
+  createSegment: async (data) => {
+    return await apiCall('/api/segments', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  /**
+   * Update segment
+   */
+  updateSegment: async (id, data) => {
+    return await apiCall(`/api/segments/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  /**
+   * Delete segment
+   */
+  deleteSegment: async (id) => {
+    return await apiCall(`/api/segments/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  /**
+   * Recalculate segment contact count
+   */
+  calculateSegment: async (id) => {
+    return await apiCall(`/api/segments/${id}/calculate`, {
+      method: 'POST',
+    });
+  },
+};
+
+/**
+ * Company Management API
+ */
+export const companyAPI = {
+  /**
+   * Get all companies with pagination and filters
+   */
+  getCompanies: async (params = {}) => {
+    const queryParams = new URLSearchParams(params).toString();
+    return await apiCall(`/api/crm/companies?${queryParams}`);
+  },
+
+  /**
+   * Get single company by ID
+   */
+  getCompany: async (id) => {
+    return await apiCall(`/api/crm/companies/${id}`);
+  },
+
+  /**
+   * Create new company
+   */
+  createCompany: async (data) => {
+    return await apiCall('/api/crm/companies', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  /**
+   * Update company
+   */
+  updateCompany: async (id, data) => {
+    return await apiCall(`/api/crm/companies/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  /**
+   * Delete company
+   */
+  deleteCompany: async (id, permanent = false) => {
+    return await apiCall(`/api/crm/companies/${id}?permanent=${permanent}`, {
+      method: 'DELETE',
+    });
+  },
+
+  /**
+   * Upload company logo
+   */
+  uploadLogo: async (id, file) => {
+    const formData = new FormData();
+    formData.append('logo', file);
+
+    const token = getToken();
+    const headers = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    try {
+      const response = await fetch(`${API_URL}/api/crm/companies/${id}/logo`, {
+        method: 'POST',
+        headers,
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to upload logo');
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Upload logo error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Upload legal document
+   */
+  uploadDocument: async (id, file) => {
+    const formData = new FormData();
+    formData.append('document', file);
+
+    const token = getToken();
+    const headers = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    try {
+      const response = await fetch(`${API_URL}/api/crm/companies/${id}/document`, {
+        method: 'POST',
+        headers,
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to upload document');
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Upload document error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Delete legal document
+   */
+  deleteDocument: async (id, documentId) => {
+    return await apiCall(`/api/crm/companies/${id}/document/${documentId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  /**
+   * Get company statistics
+   */
+  getStats: async () => {
+    return await apiCall('/api/crm/companies/stats');
+  },
+};
+
 export const tokenUtils = {
   getToken,
   setToken,
@@ -538,5 +733,7 @@ export default {
   statusAPI,
   tagAPI,
   leadSourceAPI,
+  segmentAPI,
+  companyAPI,
   tokenUtils,
 };

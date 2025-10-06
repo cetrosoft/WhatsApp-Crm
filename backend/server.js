@@ -28,6 +28,7 @@ import contactRoutes from './routes/contactRoutes.js';
 import companyRoutes from './routes/companyRoutes.js';
 import dealRoutes from './routes/dealRoutes.js';
 import pipelineRoutes from './routes/pipelineRoutes.js';
+import segmentRoutes from './routes/segmentRoutes.js';
 
 const app = express();
 const server = createServer(app);
@@ -70,6 +71,7 @@ app.use('/api/crm/contacts', contactRoutes);
 app.use('/api/crm/companies', companyRoutes);
 app.use('/api/crm/deals', dealRoutes);
 app.use('/api/crm/pipelines', pipelineRoutes);
+app.use('/api/segments', segmentRoutes);
 
 // WhatsApp Routes (existing)
 app.use('/', chatRoutes);

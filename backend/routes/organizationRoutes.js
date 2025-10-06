@@ -178,8 +178,8 @@ router.post('/logo', authenticate, setTenantContext, authorize(['admin']), async
 
     // Generate unique filename
     const fileExt = logoFile.name.split('.').pop();
-    const fileName = `${req.organizationId}-${Date.now()}.${fileExt}`;
-    const filePath = `organization-logos/${fileName}`;
+    const fileName = `organization-logo.${fileExt}`;
+    const filePath = `${req.organizationId}/${fileName}`;
 
     // Upload to Supabase Storage
     const { data: uploadData, error: uploadError } = await supabase.storage
