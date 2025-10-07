@@ -6,9 +6,11 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import supabase from '../config/supabase.js';
-import { authenticate, authorize } from '../middleware/auth.js';
+import { authenticate, authorize, requirePermission } from '../middleware/auth.js';
 import { setTenantContext } from '../middleware/tenant.js';
 import { createInvitation, acceptInvitation, verifyInvitation } from '../services/invitationService.js';
+import { getUserPermissionsSummary, getEffectivePermissions } from '../utils/permissions.js';
+import { PERMISSION_GROUPS, ROLE_PERMISSIONS } from '../constants/permissions.js';
 
 const router = express.Router();
 
@@ -20,7 +22,17 @@ router.get('/', authenticate, setTenantContext, async (req, res) => {
   try {
     const { data: users, error } = await supabase
       .from('users')
-      .select('id, email, full_name, avatar_url, role, is_active, created_at, last_login_at')
+      .select(`
+        id,
+        email,
+        full_name,
+        avatar_url,
+        is_active,
+        created_at,
+        last_login_at,
+        permissions,
+        role:roles(id, name, slug, permissions)
+      `)
       .eq('organization_id', req.organizationId)
       .order('created_at', { ascending: false });
 
@@ -28,7 +40,30 @@ router.get('/', authenticate, setTenantContext, async (req, res) => {
       throw error;
     }
 
-    res.json({ users });
+    // Format response for backward compatibility
+    const formattedUsers = users.map(user => {
+      // Parse role permissions if they're a string
+      let rolePermissions = user.role?.permissions || [];
+      if (typeof rolePermissions === 'string') {
+        try {
+          rolePermissions = JSON.parse(rolePermissions);
+        } catch (e) {
+          rolePermissions = [];
+        }
+      }
+
+      return {
+        ...user,
+        roleId: user.role?.id,
+        roleName: user.role?.name,
+        roleSlug: user.role?.slug,
+        rolePermissions: rolePermissions, // Add role's default permissions
+        // Keep legacy 'role' field for backward compatibility
+        role: user.role?.slug || 'member',
+      };
+    });
+
+    res.json({ users: formattedUsers });
   } catch (error) {
     console.error('Get users error:', error);
     res.status(500).json({ error: 'Failed to fetch users' });
@@ -41,16 +76,34 @@ router.get('/', authenticate, setTenantContext, async (req, res) => {
  */
 router.post('/invite', authenticate, setTenantContext, authorize(['admin', 'manager']), async (req, res) => {
   try {
-    const { email, role = 'member' } = req.body;
+    const { email, role = 'member', roleId } = req.body;
 
     if (!email) {
       return res.status(400).json({ error: 'Email is required' });
     }
 
-    // Validate role
-    const validRoles = ['admin', 'manager', 'agent', 'member'];
-    if (!validRoles.includes(role)) {
-      return res.status(400).json({ error: 'Invalid role' });
+    // Get role_id - accept either roleId directly or role slug
+    let targetRoleId = roleId;
+
+    if (!targetRoleId && role) {
+      // Convert role slug to role_id
+      const { data: roleData, error: roleError } = await supabase
+        .from('roles')
+        .select('id')
+        .eq('organization_id', req.organizationId)
+        .eq('slug', role)
+        .eq('is_system', true)
+        .single();
+
+      if (roleError || !roleData) {
+        return res.status(400).json({ error: 'Invalid role' });
+      }
+
+      targetRoleId = roleData.id;
+    }
+
+    if (!targetRoleId) {
+      return res.status(400).json({ error: 'Role is required' });
     }
 
     // Get organization with package limits
@@ -83,7 +136,8 @@ router.post('/invite', authenticate, setTenantContext, authorize(['admin', 'mana
     const invitation = await createInvitation({
       organizationId: req.organizationId,
       email,
-      role,
+      roleId: targetRoleId,
+      role, // Keep for backward compatibility in email template
       invitedBy: req.user.userId,
       organizationName: organization.name,
     });
@@ -227,10 +281,31 @@ router.get('/verify-invitation/:token', async (req, res) => {
 router.patch('/:userId', authenticate, setTenantContext, authorize(['admin']), async (req, res) => {
   try {
     const { userId } = req.params;
-    const { role, isActive } = req.body;
+    const { role, roleId, isActive } = req.body;
 
     const updates = {};
-    if (role) updates.role = role;
+
+    // Accept either roleId (new) or role slug (legacy)
+    if (roleId) {
+      // Verify roleId belongs to this organization
+      const { data: roleData, error: roleError } = await supabase
+        .from('roles')
+        .select('id')
+        .eq('id', roleId)
+        .eq('organization_id', req.organizationId)
+        .single();
+
+      if (roleError || !roleData) {
+        return res.status(400).json({ error: 'Invalid role' });
+      }
+
+      updates.role_id = roleId;
+      // role column will be synced automatically by trigger
+    } else if (role) {
+      // Legacy: accept role slug
+      updates.role = role;
+    }
+
     if (typeof isActive === 'boolean') updates.is_active = isActive;
 
     const { data: user, error } = await supabase
@@ -301,6 +376,133 @@ router.delete('/:userId', authenticate, setTenantContext, authorize(['admin']), 
   } catch (error) {
     console.error('Delete user error:', error);
     res.status(500).json({ error: 'Failed to delete user' });
+  }
+});
+
+/**
+ * GET /api/users/:userId/permissions
+ * Get user's effective permissions (admin only)
+ */
+router.get('/:userId/permissions', authenticate, setTenantContext, requirePermission('permissions.manage'), async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // Get user with permissions
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('id, email, full_name, role, permissions')
+      .eq('id', userId)
+      .eq('organization_id', req.organizationId)
+      .single();
+
+    if (error || !user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Get permission summary
+    const summary = getUserPermissionsSummary(user);
+
+    res.json({
+      userId: user.id,
+      email: user.email,
+      fullName: user.full_name,
+      ...summary,
+    });
+
+  } catch (error) {
+    console.error('Get user permissions error:', error);
+    res.status(500).json({ error: 'Failed to get user permissions' });
+  }
+});
+
+/**
+ * PATCH /api/users/:userId/permissions
+ * Update user's custom permissions (admin only)
+ * Body: { grant: ['permission1'], revoke: ['permission2'] }
+ */
+router.patch('/:userId/permissions', authenticate, setTenantContext, requirePermission('permissions.manage'), async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { grant = [], revoke = [] } = req.body;
+
+    // Validate arrays
+    if (!Array.isArray(grant) || !Array.isArray(revoke)) {
+      return res.status(400).json({ error: 'Grant and revoke must be arrays' });
+    }
+
+    // Prevent self-modification
+    if (userId === req.user.userId) {
+      return res.status(400).json({ error: 'Cannot modify your own permissions' });
+    }
+
+    // Get current user
+    const { data: user, error: fetchError } = await supabase
+      .from('users')
+      .select('id, role, permissions')
+      .eq('id', userId)
+      .eq('organization_id', req.organizationId)
+      .single();
+
+    if (fetchError || !user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Update permissions
+    const { data: updatedUser, error: updateError } = await supabase
+      .from('users')
+      .update({
+        permissions: {
+          grant,
+          revoke,
+        }
+      })
+      .eq('id', userId)
+      .eq('organization_id', req.organizationId)
+      .select('id, email, full_name, role, permissions')
+      .single();
+
+    if (updateError) {
+      throw updateError;
+    }
+
+    // Get permission summary
+    const summary = getUserPermissionsSummary(updatedUser);
+
+    res.json({
+      message: 'Permissions updated successfully',
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        fullName: updatedUser.full_name,
+        ...summary,
+      }
+    });
+
+  } catch (error) {
+    console.error('Update user permissions error:', error);
+    res.status(500).json({ error: 'Failed to update user permissions' });
+  }
+});
+
+/**
+ * GET /api/users/permissions/available
+ * Get all available permissions grouped by category (admin only)
+ */
+router.get('/permissions/available', authenticate, setTenantContext, authorize(['admin']), async (req, res) => {
+  try {
+    // Return PERMISSION_GROUPS as-is (object format expected by frontend utils)
+    res.json({
+      groups: PERMISSION_GROUPS,
+      roles: {
+        admin: ROLE_PERMISSIONS.admin,
+        manager: ROLE_PERMISSIONS.manager,
+        agent: ROLE_PERMISSIONS.agent,
+        member: ROLE_PERMISSIONS.member,
+      }
+    });
+  } catch (error) {
+    console.error('Get available permissions error:', error);
+    res.status(500).json({ error: 'Failed to get available permissions' });
   }
 });
 

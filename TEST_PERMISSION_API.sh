@@ -1,0 +1,68 @@
+#!/bin/bash
+
+# Permission System API Test Script
+# Run this after logging in to get auth tokens
+
+echo "=== Permission System API Tests ==="
+echo ""
+echo "Step 1: Login as Admin to get token"
+echo "---"
+echo "curl -X POST http://localhost:5000/api/auth/login \\"
+echo "  -H 'Content-Type: application/json' \\"
+echo "  -d '{\"email\":\"walid.abdallah.ahmed@gmail.com\",\"password\":\"YOUR_PASSWORD\"}'"
+echo ""
+echo "Save the token from response..."
+echo ""
+
+# Set your tokens here after login
+ADMIN_TOKEN="YOUR_ADMIN_TOKEN_HERE"
+AGENT_USER_ID="d21153fb-22e6-41ae-8234-feed443e973a"
+AGENT_TOKEN="YOUR_AGENT_TOKEN_HERE"
+
+echo ""
+echo "Step 2: Get Available Permissions (Admin Only)"
+echo "---"
+echo "curl -X GET http://localhost:5000/api/users/permissions/available \\"
+echo "  -H 'Authorization: Bearer $ADMIN_TOKEN'"
+echo ""
+
+echo ""
+echo "Step 3: Get Agent User Permissions"
+echo "---"
+echo "curl -X GET http://localhost:5000/api/users/$AGENT_USER_ID/permissions \\"
+echo "  -H 'Authorization: Bearer $ADMIN_TOKEN'"
+echo ""
+
+echo ""
+echo "Step 4: Grant Agent Permission to Create Tags"
+echo "---"
+echo "curl -X PATCH http://localhost:5000/api/users/$AGENT_USER_ID/permissions \\"
+echo "  -H 'Authorization: Bearer $ADMIN_TOKEN' \\"
+echo "  -H 'Content-Type: application/json' \\"
+echo "  -d '{\"grant\":[\"tags.create\",\"tags.edit\"],\"revoke\":[]}'"
+echo ""
+
+echo ""
+echo "Step 5: Try to Create Tag as Agent (should work after grant)"
+echo "---"
+echo "curl -X POST http://localhost:5000/api/tags \\"
+echo "  -H 'Authorization: Bearer $AGENT_TOKEN' \\"
+echo "  -H 'Content-Type: application/json' \\"
+echo "  -d '{\"name_en\":\"VIP Customer\",\"color\":\"#6366f1\"}'"
+echo ""
+
+echo ""
+echo "Step 6: Revoke Permission and Test Again"
+echo "---"
+echo "curl -X PATCH http://localhost:5000/api/users/$AGENT_USER_ID/permissions \\"
+echo "  -H 'Authorization: Bearer $ADMIN_TOKEN' \\"
+echo "  -H 'Content-Type: application/json' \\"
+echo "  -d '{\"grant\":[],\"revoke\":[\"tags.create\"]}'"
+echo ""
+echo "curl -X POST http://localhost:5000/api/tags \\"
+echo "  -H 'Authorization: Bearer $AGENT_TOKEN' \\"
+echo "  -H 'Content-Type: application/json' \\"
+echo "  -d '{\"name_en\":\"Another Tag\",\"color\":\"#ec4899\"}'"
+echo ""
+echo "Expected: 403 Insufficient permissions"
+echo ""

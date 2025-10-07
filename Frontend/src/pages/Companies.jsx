@@ -128,7 +128,14 @@ const Companies = () => {
         loadCompanies();
       } catch (error) {
         console.error('Error deleting company:', error);
-        toast.error('Failed to delete company');
+
+        if (error.response?.status === 403) {
+          toast.error('You don\'t have permission to delete companies. Only managers and administrators can delete companies.', {
+            duration: 5000
+          });
+        } else {
+          toast.error(error.response?.data?.message || 'Failed to delete company');
+        }
       } finally {
         setDeletingId(null);
       }

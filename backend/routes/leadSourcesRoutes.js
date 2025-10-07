@@ -6,7 +6,8 @@
 
 import express from 'express';
 import supabase from '../config/supabase.js';
-import { authenticateToken } from '../middleware/auth.js';
+import { authenticateToken, requirePermission } from '../middleware/auth.js';
+import { PERMISSIONS } from '../constants/permissions.js';
 
 const router = express.Router();
 
@@ -14,7 +15,7 @@ const router = express.Router();
  * GET /api/lead-sources
  * Get all active lead sources
  */
-router.get('/', async (req, res) => {
+router.get('/', authenticateToken, requirePermission(PERMISSIONS.LEAD_SOURCES_VIEW), async (req, res) => {
   try {
     const { data: leadSources, error } = await supabase
       .from('lead_sources')
@@ -36,9 +37,9 @@ router.get('/', async (req, res) => {
 
 /**
  * POST /api/lead-sources
- * Create new lead source (admin only)
+ * Create new lead source (Permission: lead_sources.create)
  */
-router.post('/', authenticateToken, async (req, res) => {
+router.post('/', authenticateToken, requirePermission(PERMISSIONS.LEAD_SOURCES_CREATE), async (req, res) => {
   try {
     const { slug, name_en, name_ar, color, description_en, description_ar, display_order } = req.body;
 
@@ -97,9 +98,9 @@ router.post('/', authenticateToken, async (req, res) => {
 
 /**
  * PUT /api/lead-sources/:id
- * Update lead source
+ * Update lead source (Permission: lead_sources.edit)
  */
-router.put('/:id', authenticateToken, async (req, res) => {
+router.put('/:id', authenticateToken, requirePermission(PERMISSIONS.LEAD_SOURCES_EDIT), async (req, res) => {
   try {
     const { id } = req.params;
     const { name_en, name_ar, color, description_en, description_ar, display_order } = req.body;
@@ -143,9 +144,9 @@ router.put('/:id', authenticateToken, async (req, res) => {
 
 /**
  * DELETE /api/lead-sources/:id
- * Soft delete lead source (set is_active = false)
+ * Soft delete lead source (Permission: lead_sources.delete)
  */
-router.delete('/:id', authenticateToken, async (req, res) => {
+router.delete('/:id', authenticateToken, requirePermission(PERMISSIONS.LEAD_SOURCES_DELETE), async (req, res) => {
   try {
     const { id } = req.params;
 

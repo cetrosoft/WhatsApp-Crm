@@ -314,12 +314,14 @@ const SegmentBuilderModal = ({ isOpen, onClose, segment, onSave }) => {
       onSave();
     } catch (error) {
       console.error('Error saving segment:', error);
-      console.error('Error details:', {
-        message: error.message,
-        stack: error.stack,
-        error
-      });
-      toast.error(error.message || 'Failed to save segment. Check console for details.');
+
+      if (error.response?.status === 403) {
+        toast.error('You don\'t have permission to create/edit segments. Only managers and administrators can manage segments.', {
+          duration: 5000
+        });
+      } else {
+        toast.error(error.response?.data?.message || error.message || 'Failed to save segment');
+      }
     } finally {
       setLoading(false);
     }

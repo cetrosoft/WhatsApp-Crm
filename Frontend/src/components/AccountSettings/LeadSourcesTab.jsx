@@ -8,9 +8,11 @@ import { useTranslation } from 'react-i18next';
 import { leadSourceAPI } from '../../services/api';
 import { Plus, Edit2, Trash2, Target } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useAuth } from '../../contexts/AuthContext';
 
 const LeadSourcesTab = () => {
   const { t, i18n } = useTranslation(['common', 'settings']);
+  const { user } = useAuth();
   const isRTL = i18n.language === 'ar';
 
   // Helper function to generate slug from text
@@ -70,6 +72,12 @@ const LeadSourcesTab = () => {
   };
 
   const handleAddSource = () => {
+    // Check permission before opening modal
+    if (user?.role !== 'admin') {
+      toast.error(t('cannotCreateLeadSources'), { duration: 5000 });
+      return;
+    }
+
     setEditingSource(null);
     setSourceForm({
       slug: '',
@@ -84,6 +92,12 @@ const LeadSourcesTab = () => {
   };
 
   const handleEditSource = (source) => {
+    // Check permission before opening modal
+    if (user?.role !== 'admin') {
+      toast.error(t('cannotEditLeadSources'), { duration: 5000 });
+      return;
+    }
+
     setEditingSource(source);
     setSourceForm({
       slug: source.slug || '',
@@ -125,11 +139,24 @@ const LeadSourcesTab = () => {
       loadLeadSources();
     } catch (error) {
       console.error('Error saving lead source:', error);
-      toast.error(error.message || 'Failed to save lead source');
+
+      if (error.response?.status === 403) {
+        toast.error('You don\'t have permission to manage lead sources. Only administrators can modify lead sources.', {
+          duration: 5000
+        });
+      } else {
+        toast.error(error.response?.data?.message || 'Failed to save lead source');
+      }
     }
   };
 
   const handleDeleteSource = async (source) => {
+    // Check permission before showing confirm dialog
+    if (user?.role !== 'admin') {
+      toast.error(t('cannotDeleteLeadSources'), { duration: 5000 });
+      return;
+    }
+
     if (!confirm(`Are you sure you want to delete the lead source "${source.name_en}"?`)) {
       return;
     }
@@ -140,7 +167,14 @@ const LeadSourcesTab = () => {
       loadLeadSources();
     } catch (error) {
       console.error('Error deleting lead source:', error);
-      toast.error('Failed to delete lead source');
+
+      if (error.response?.status === 403) {
+        toast.error(t('cannotDeleteLeadSources'), {
+          duration: 5000
+        });
+      } else {
+        toast.error('Failed to delete lead source');
+      }
     }
   };
 

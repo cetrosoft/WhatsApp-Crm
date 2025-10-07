@@ -6,7 +6,8 @@
 
 import express from 'express';
 import supabase from '../config/supabase.js';
-import { authenticateToken } from '../middleware/auth.js';
+import { authenticateToken, requirePermission } from '../middleware/auth.js';
+import { PERMISSIONS } from '../constants/permissions.js';
 
 const router = express.Router();
 
@@ -14,7 +15,7 @@ const router = express.Router();
  * GET /api/statuses/contacts
  * Get all active contact statuses
  */
-router.get('/contacts', async (req, res) => {
+router.get('/contacts', authenticateToken, requirePermission(PERMISSIONS.STATUSES_VIEW), async (req, res) => {
   try {
     const { data: statuses, error } = await supabase
       .from('contact_statuses')
@@ -38,7 +39,7 @@ router.get('/contacts', async (req, res) => {
  * GET /api/statuses/companies
  * Get all active company statuses
  */
-router.get('/companies', async (req, res) => {
+router.get('/companies', authenticateToken, requirePermission(PERMISSIONS.STATUSES_VIEW), async (req, res) => {
   try {
     const { data: statuses, error } = await supabase
       .from('company_statuses')
@@ -60,9 +61,9 @@ router.get('/companies', async (req, res) => {
 
 /**
  * POST /api/statuses/contacts
- * Create new contact status (admin only)
+ * Create new contact status (Permission: statuses.create)
  */
-router.post('/contacts', authenticateToken, async (req, res) => {
+router.post('/contacts', authenticateToken, requirePermission(PERMISSIONS.STATUSES_CREATE), async (req, res) => {
   try {
     const { slug, name_en, name_ar, color, description_en, description_ar, display_order } = req.body;
 
@@ -121,9 +122,9 @@ router.post('/contacts', authenticateToken, async (req, res) => {
 
 /**
  * PUT /api/statuses/contacts/:id
- * Update contact status
+ * Update contact status (Permission: statuses.edit)
  */
-router.put('/contacts/:id', authenticateToken, async (req, res) => {
+router.put('/contacts/:id', authenticateToken, requirePermission(PERMISSIONS.STATUSES_EDIT), async (req, res) => {
   try {
     const { id } = req.params;
     const { name_en, name_ar, color, description_en, description_ar, display_order } = req.body;
@@ -167,9 +168,9 @@ router.put('/contacts/:id', authenticateToken, async (req, res) => {
 
 /**
  * DELETE /api/statuses/contacts/:id
- * Soft delete contact status (set is_active = false)
+ * Soft delete contact status (Permission: statuses.delete)
  */
-router.delete('/contacts/:id', authenticateToken, async (req, res) => {
+router.delete('/contacts/:id', authenticateToken, requirePermission(PERMISSIONS.STATUSES_DELETE), async (req, res) => {
   try {
     const { id } = req.params;
 

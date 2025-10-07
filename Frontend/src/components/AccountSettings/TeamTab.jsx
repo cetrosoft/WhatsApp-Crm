@@ -5,21 +5,26 @@
 
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { userAPI } from '../../services/api';
+import { userAPI, roleAPI } from '../../services/api';
 import { Mail, UserPlus, MoreVertical, Shield, UserCheck, UserX } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const TeamTab = () => {
   const { t } = useTranslation('settings');
   const [users, setUsers] = useState([]);
+  const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showInviteModal, setShowInviteModal] = useState(false);
-  const [inviteData, setInviteData] = useState({ email: '', role: 'member' });
+  const [inviteData, setInviteData] = useState({ email: '', roleId: '' });
   const [inviting, setInviting] = useState(false);
 
   useEffect(() => {
-    fetchUsers();
+    fetchData();
   }, []);
+
+  const fetchData = async () => {
+    await Promise.all([fetchUsers(), fetchRoles()]);
+  };
 
   const fetchUsers = async () => {
     try {
@@ -32,15 +37,34 @@ const TeamTab = () => {
     }
   };
 
+  const fetchRoles = async () => {
+    try {
+      const data = await roleAPI.getRoles();
+      setRoles(data.roles || []);
+      // Set default roleId to member role
+      if (data.roles && data.roles.length > 0) {
+        const memberRole = data.roles.find(r => r.slug === 'member');
+        if (memberRole) {
+          setInviteData(prev => ({ ...prev, roleId: memberRole.id }));
+        }
+      }
+    } catch (error) {
+      toast.error('Failed to load roles');
+    }
+  };
+
   const handleInvite = async (e) => {
     e.preventDefault();
     setInviting(true);
 
     try {
-      await userAPI.inviteUser(inviteData.email, inviteData.role);
+      // Send roleId to backend
+      await userAPI.inviteUser(inviteData.email, null, inviteData.roleId);
       toast.success(t('invitationSent'));
       setShowInviteModal(false);
-      setInviteData({ email: '', role: 'member' });
+      // Reset to default member role
+      const memberRole = roles.find(r => r.slug === 'member');
+      setInviteData({ email: '', roleId: memberRole?.id || '' });
     } catch (error) {
       toast.error(error.message || 'Failed to send invitation');
     } finally {
@@ -48,9 +72,9 @@ const TeamTab = () => {
     }
   };
 
-  const handleChangeRole = async (userId, newRole) => {
+  const handleChangeRole = async (userId, newRoleId) => {
     try {
-      await userAPI.updateUser(userId, { role: newRole });
+      await userAPI.updateUser(userId, { roleId: newRoleId });
       toast.success(t('roleUpdated'));
       fetchUsers();
     } catch (error) {
@@ -162,14 +186,15 @@ const TeamTab = () => {
                 <td className="px-4 py-4 whitespace-nowrap text-start">
                   <div className="flex items-center gap-2">
                     <select
-                      value={user.role}
+                      value={user.roleId || user.role}
                       onChange={(e) => handleChangeRole(user.id, e.target.value)}
                       className="text-sm border border-gray-300 rounded px-2 py-1"
                     >
-                      <option value="admin">{t('admin')}</option>
-                      <option value="manager">{t('manager')}</option>
-                      <option value="agent">{t('agent')}</option>
-                      <option value="member">{t('member')}</option>
+                      {roles.map((role) => (
+                        <option key={role.id} value={role.id}>
+                          {role.name} {role.is_system ? '' : '(Custom)'}
+                        </option>
+                      ))}
                     </select>
                     <button
                       onClick={() => handleToggleActive(user.id, user.is_active)}
@@ -218,14 +243,16 @@ const TeamTab = () => {
                   {t('role')}
                 </label>
                 <select
-                  value={inviteData.role}
-                  onChange={(e) => setInviteData(prev => ({ ...prev, role: e.target.value }))}
+                  value={inviteData.roleId}
+                  onChange={(e) => setInviteData(prev => ({ ...prev, roleId: e.target.value }))}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-start"
+                  required
                 >
-                  <option value="member">{t('member')}</option>
-                  <option value="agent">{t('agent')}</option>
-                  <option value="manager">{t('manager')}</option>
-                  <option value="admin">{t('admin')}</option>
+                  {roles.map((role) => (
+                    <option key={role.id} value={role.id}>
+                      {role.name} {role.is_system ? '' : '(Custom)'}
+                    </option>
+                  ))}
                 </select>
               </div>
 

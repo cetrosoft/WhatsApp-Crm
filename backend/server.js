@@ -16,6 +16,7 @@ import profileRoutes from './routes/profileRoutes.js';
 import exportRoutes from './routes/exportRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import userRoutes from './routes/userRoutes.js';
+import roleRoutes from './routes/roleRoutes.js';
 import packageRoutes from './routes/packageRoutes.js';
 import organizationRoutes from './routes/organizationRoutes.js';
 import countriesRoutes from './routes/countriesRoutes.js';
@@ -59,6 +60,7 @@ whatsappClient.getClient().on("message", (msg) => {
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/roles', roleRoutes);
 app.use('/api/packages', packageRoutes);
 app.use('/api/organization', organizationRoutes);
 app.use('/api/countries', countriesRoutes);

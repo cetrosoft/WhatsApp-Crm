@@ -268,13 +268,6 @@ const menuConfig = [
         path: '/team/members'
       },
       {
-        id: 'invite-member',
-        labelKey: 'inviteMember',
-        label: 'Invite Member',
-        icon: 'UserPlus',
-        path: '/team/invite'
-      },
-      {
         id: 'roles-permissions',
         labelKey: 'rolesPermissions',
         label: 'Roles & Permissions',

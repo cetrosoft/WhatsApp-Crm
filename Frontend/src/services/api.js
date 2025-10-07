@@ -51,11 +51,24 @@ const apiCall = async (endpoint, options = {}) => {
     const data = await response.json();
 
     if (!response.ok) {
-      throw new Error(data.error || 'Request failed');
+      // Create error with response information (axios-like structure)
+      const error = new Error(data.message || data.error || 'Request failed');
+      error.response = {
+        status: response.status,
+        data: data
+      };
+      throw error;
     }
 
     return data;
   } catch (error) {
+    // If error doesn't have response (network error), add basic info
+    if (!error.response && error instanceof TypeError) {
+      error.response = {
+        status: 0,
+        data: { message: 'Network error' }
+      };
+    }
     console.error('API Error:', error);
     throw error;
   }
@@ -132,10 +145,10 @@ export const userAPI = {
   /**
    * Invite user to organization
    */
-  inviteUser: async (email, role) => {
+  inviteUser: async (email, role = null, roleId = null) => {
     return await apiCall('/api/users/invite', {
       method: 'POST',
-      body: JSON.stringify({ email, role }),
+      body: JSON.stringify({ email, role, roleId }),
     });
   },
 
@@ -277,6 +290,90 @@ export const organizationAPI = {
       console.error('Upload logo error:', error);
       throw error;
     }
+  },
+};
+
+/**
+ * Permission Management API
+ */
+export const permissionAPI = {
+  /**
+   * Get all available permissions grouped by category
+   */
+  getAvailablePermissions: async () => {
+    return await apiCall('/api/users/permissions/available');
+  },
+
+  /**
+   * Get user's effective permissions
+   */
+  getUserPermissions: async (userId) => {
+    return await apiCall(`/api/users/${userId}/permissions`);
+  },
+
+  /**
+   * Update user's custom permissions
+   */
+  updateUserPermissions: async (userId, grant = [], revoke = []) => {
+    return await apiCall(`/api/users/${userId}/permissions`, {
+      method: 'PATCH',
+      body: JSON.stringify({ grant, revoke }),
+    });
+  },
+};
+
+/**
+ * Role Management API
+ */
+export const roleAPI = {
+  /**
+   * Get all roles in organization (system + custom)
+   */
+  getRoles: async () => {
+    return await apiCall('/api/roles');
+  },
+
+  /**
+   * Get single role by ID
+   */
+  getRole: async (roleId) => {
+    return await apiCall(`/api/roles/${roleId}`);
+  },
+
+  /**
+   * Create a new custom role
+   */
+  createRole: async (roleData) => {
+    return await apiCall('/api/roles', {
+      method: 'POST',
+      body: JSON.stringify(roleData),
+    });
+  },
+
+  /**
+   * Update a custom role
+   */
+  updateRole: async (roleId, roleData) => {
+    return await apiCall(`/api/roles/${roleId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(roleData),
+    });
+  },
+
+  /**
+   * Delete a custom role
+   */
+  deleteRole: async (roleId) => {
+    return await apiCall(`/api/roles/${roleId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  /**
+   * Get users assigned to a role
+   */
+  getRoleUsers: async (roleId) => {
+    return await apiCall(`/api/roles/${roleId}/users`);
   },
 };
 
@@ -735,5 +832,6 @@ export default {
   leadSourceAPI,
   segmentAPI,
   companyAPI,
+  permissionAPI,
   tokenUtils,
 };

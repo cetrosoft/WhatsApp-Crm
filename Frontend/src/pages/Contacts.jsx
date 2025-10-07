@@ -159,7 +159,15 @@ const Contacts = () => {
         loadContacts();
       }
     } catch (error) {
-      toast.error(error.message || 'Failed to delete contact');
+      console.error('Error deleting contact:', error);
+
+      if (error.response?.status === 403) {
+        toast.error('You don\'t have permission to delete contacts. Only managers and administrators can delete contacts.', {
+          duration: 5000
+        });
+      } else {
+        toast.error(error.response?.data?.message || 'Failed to delete contact');
+      }
     } finally {
       setDeleteModalOpen(false);
       setContactToDelete(null);

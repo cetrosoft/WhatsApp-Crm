@@ -5,13 +5,17 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { contactAPI, countryAPI, statusAPI, userAPI, tagAPI, leadSourceAPI, companyAPI } from '../services/api';
 import { X, Upload, User, Trash2, Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
 import SearchableSelect from './SearchableSelect';
+import { useAuth } from '../contexts/AuthContext';
 
 const ContactModal = ({ isOpen, onClose, contact, onSave }) => {
-  const { t, i18n } = useTranslation('contacts');
+  const { t, i18n } = useTranslation(['contacts', 'common']);
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const isRTL = i18n.language === 'ar';
   const fileInputRef = useRef(null);
 
@@ -200,6 +204,12 @@ const ContactModal = ({ isOpen, onClose, contact, onSave }) => {
       // Use existing tag
       tagId = existingTag.id;
     } else {
+      // Check permission before attempting to create new tag
+      if (user?.role !== 'admin') {
+        toast.error(t('cannotCreateTags'), { duration: 5000 });
+        return;
+      }
+
       // Auto-create new tag
       try {
         const response = await tagAPI.createTag({
@@ -215,6 +225,13 @@ const ContactModal = ({ isOpen, onClose, contact, onSave }) => {
           toast.success('New tag created');
         }
       } catch (error) {
+        if (error.response?.status === 403) {
+          toast.error(t('cannotCreateTags'), {
+            duration: 5000
+          });
+          return;
+        }
+
         if (error.message.includes('already exists')) {
           // Tag was just created by another user, reload tags
           await loadLookupData();
@@ -309,7 +326,22 @@ const ContactModal = ({ isOpen, onClose, contact, onSave }) => {
       }
     } catch (error) {
       console.error('Error saving contact:', error);
-      toast.error(error.message || 'Failed to save contact');
+
+      // Check if upgrade is required
+      if (error.response?.data?.upgrade_required) {
+        toast.error(error.response.data.message, {
+          duration: 6000,
+          action: {
+            label: 'Upgrade Plan',
+            onClick: () => {
+              onClose();
+              navigate('/account-settings?tab=subscription');
+            }
+          }
+        });
+      } else {
+        toast.error(error.response?.data?.message || error.message || 'Failed to save contact');
+      }
     } finally {
       setLoading(false);
     }

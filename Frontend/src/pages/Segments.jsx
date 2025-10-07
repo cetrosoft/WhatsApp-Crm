@@ -8,11 +8,16 @@ import { useTranslation } from 'react-i18next';
 import { segmentAPI, statusAPI, countryAPI, userAPI, tagAPI, leadSourceAPI } from '../services/api';
 import { Plus, Edit2, Trash2, Users, RefreshCw, Eye } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useAuth } from '../contexts/AuthContext';
 import SegmentBuilderModal from '../components/SegmentBuilderModal';
 
 const Segments = () => {
   const { t, i18n } = useTranslation('common');
+  const { user } = useAuth();
   const isRTL = i18n.language === 'ar';
+
+  // Check if user can manage segments (admin or manager only)
+  const canManageSegments = user && ['admin', 'manager'].includes(user.role);
 
   const [segments, setSegments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -68,16 +73,34 @@ const Segments = () => {
   };
 
   const handleCreateSegment = () => {
+    // Check permission before opening modal
+    if (!canManageSegments) {
+      toast.error(t('cannotCreateSegments'), { duration: 5000 });
+      return;
+    }
+
     setEditingSegment(null);
     setShowModal(true);
   };
 
   const handleEditSegment = (segment) => {
+    // Check permission before opening modal
+    if (!canManageSegments) {
+      toast.error(t('cannotEditSegments'), { duration: 5000 });
+      return;
+    }
+
     setEditingSegment(segment);
     setShowModal(true);
   };
 
   const handleDeleteSegment = async (segment) => {
+    // Check permission before showing confirm dialog
+    if (!canManageSegments) {
+      toast.error(t('cannotDeleteSegments'), { duration: 5000 });
+      return;
+    }
+
     if (!confirm(t('deleteSegmentConfirm'))) {
       return;
     }
@@ -89,7 +112,11 @@ const Segments = () => {
       loadSegments();
     } catch (error) {
       console.error('Error deleting segment:', error);
-      toast.error('Failed to delete segment');
+      if (error.response?.status === 403) {
+        toast.error(t('cannotDeleteSegments'), { duration: 5000 });
+      } else {
+        toast.error('Failed to delete segment');
+      }
     } finally {
       setDeletingId(null);
     }

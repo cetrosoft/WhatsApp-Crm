@@ -26,6 +26,12 @@ import Contacts from "./pages/Contacts";
 import CRMSettings from "./pages/CRMSettings";
 import Segments from "./pages/Segments";
 import Companies from "./pages/Companies";
+
+// Pages - Team
+import TeamMembers from "./pages/Team/TeamMembers";
+import RolesPermissions from "./pages/Team/RolesPermissions";
+import CreateRole from "./pages/CreateRole";
+
 import menuConfig from "./menuConfig";
 
 // Map between component names and actual code
@@ -50,6 +56,12 @@ const MainLayout = () => {
         <Route path="/crm/companies" element={<Companies />} />
         <Route path="/crm/segmentation" element={<Segments />} />
         <Route path="/crm/settings" element={<CRMSettings />} />
+
+        {/* Team */}
+        <Route path="/team/members" element={<TeamMembers />} />
+        <Route path="/team/roles" element={<RolesPermissions />} />
+        <Route path="/team/roles/create" element={<CreateRole />} />
+        <Route path="/team/roles/edit/:roleId" element={<CreateRole />} />
 
         {/* Old routes - will be migrated to new structure */}
         <Route path="/campaigns" element={<Campaigns />} />

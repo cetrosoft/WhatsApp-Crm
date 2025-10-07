@@ -8,9 +8,11 @@ import { useTranslation } from 'react-i18next';
 import { statusAPI } from '../../services/api';
 import { Plus, Edit2, Trash2, Circle } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useAuth } from '../../contexts/AuthContext';
 
 const ContactStatusesTab = () => {
   const { t, i18n } = useTranslation(['common', 'settings']);
+  const { user } = useAuth();
   const isRTL = i18n.language === 'ar';
 
   // Helper function to generate slug from text
@@ -70,6 +72,12 @@ const ContactStatusesTab = () => {
   };
 
   const handleAddStatus = () => {
+    // Check permission before opening modal
+    if (user?.role !== 'admin') {
+      toast.error(t('cannotCreateStatuses'), { duration: 5000 });
+      return;
+    }
+
     setEditingStatus(null);
     setStatusForm({
       slug: '',
@@ -84,6 +92,12 @@ const ContactStatusesTab = () => {
   };
 
   const handleEditStatus = (status) => {
+    // Check permission before opening modal
+    if (user?.role !== 'admin') {
+      toast.error(t('cannotEditStatuses'), { duration: 5000 });
+      return;
+    }
+
     setEditingStatus(status);
     setStatusForm({
       slug: status.slug || '',
@@ -125,11 +139,24 @@ const ContactStatusesTab = () => {
       loadStatuses();
     } catch (error) {
       console.error('Error saving status:', error);
-      toast.error(error.message || 'Failed to save status');
+
+      if (error.response?.status === 403) {
+        toast.error('You don\'t have permission to manage contact statuses. Only administrators can modify statuses.', {
+          duration: 5000
+        });
+      } else {
+        toast.error(error.response?.data?.message || 'Failed to save status');
+      }
     }
   };
 
   const handleDeleteStatus = async (status) => {
+    // Check permission before showing confirm dialog
+    if (user?.role !== 'admin') {
+      toast.error(t('cannotDeleteStatuses'), { duration: 5000 });
+      return;
+    }
+
     if (!confirm(`Are you sure you want to delete the status "${status.name_en}"?`)) {
       return;
     }
@@ -140,7 +167,14 @@ const ContactStatusesTab = () => {
       loadStatuses();
     } catch (error) {
       console.error('Error deleting status:', error);
-      toast.error('Failed to delete status');
+
+      if (error.response?.status === 403) {
+        toast.error(t('cannotDeleteStatuses'), {
+          duration: 5000
+        });
+      } else {
+        toast.error('Failed to delete status');
+      }
     }
   };
 

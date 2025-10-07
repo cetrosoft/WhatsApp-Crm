@@ -93,6 +93,23 @@ router.post('/register', async (req, res) => {
       return res.status(500).json({ error: 'Failed to create organization' });
     }
 
+    // Get admin role for this organization
+    const { data: adminRole, error: roleError } = await supabase
+      .from('roles')
+      .select('id, slug, permissions')
+      .eq('organization_id', organization.id)
+      .eq('slug', 'admin')
+      .eq('is_system', true)
+      .single();
+
+    if (roleError || !adminRole) {
+      console.error('Admin role not found:', roleError);
+      // Cleanup
+      await supabase.from('organizations').delete().eq('id', organization.id);
+      await supabase.auth.admin.deleteUser(userId);
+      return res.status(500).json({ error: 'Failed to initialize roles. Please contact support.' });
+    }
+
     // Create user profile
     const { data: user, error: userError } = await supabase
       .from('users')
@@ -101,10 +118,13 @@ router.post('/register', async (req, res) => {
         organization_id: organization.id,
         email,
         full_name: fullName || null,
-        role: 'admin',
+        role_id: adminRole.id,
         is_active: true,
       })
-      .select()
+      .select(`
+        *,
+        role:roles(id, name, slug, permissions)
+      `)
       .single();
 
     if (userError) {
@@ -115,12 +135,14 @@ router.post('/register', async (req, res) => {
       return res.status(500).json({ error: 'Failed to create user profile' });
     }
 
-    // Generate JWT token
+    // Generate JWT token with role information
     const token = jwt.sign(
       {
         userId: user.id,
         organizationId: organization.id,
-        role: user.role,
+        role: user.role?.slug || 'admin',
+        roleSlug: user.role?.slug || 'admin',
+        rolePermissions: user.role?.permissions || [],
       },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
@@ -133,7 +155,9 @@ router.post('/register', async (req, res) => {
         id: user.id,
         email: user.email,
         fullName: user.full_name,
-        role: user.role,
+        role: user.role?.slug || 'admin',
+        roleId: user.role?.id,
+        roleName: user.role?.name,
       },
       organization: {
         id: organization.id,
@@ -173,12 +197,13 @@ router.post('/login', async (req, res) => {
 
     const userId = authData.user.id;
 
-    // Get user profile
+    // Get user profile with role information
     const { data: user, error: userError } = await supabase
       .from('users')
       .select(`
         *,
-        organization:organizations(*)
+        organization:organizations(*),
+        role:roles(id, name, slug, permissions)
       `)
       .eq('id', userId)
       .single();
@@ -197,12 +222,14 @@ router.post('/login', async (req, res) => {
       .update({ last_login_at: new Date().toISOString() })
       .eq('id', userId);
 
-    // Generate JWT token
+    // Generate JWT token with role information
     const token = jwt.sign(
       {
         userId: user.id,
         organizationId: user.organization_id,
-        role: user.role,
+        role: user.role?.slug || 'member', // Legacy compatibility
+        roleSlug: user.role?.slug || 'member',
+        rolePermissions: user.role?.permissions || [],
       },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
@@ -215,7 +242,9 @@ router.post('/login', async (req, res) => {
         id: user.id,
         email: user.email,
         fullName: user.full_name,
-        role: user.role,
+        role: user.role?.slug || 'member',
+        roleId: user.role?.id,
+        roleName: user.role?.name,
         avatarUrl: user.avatar_url,
       },
       organization: user.organization,

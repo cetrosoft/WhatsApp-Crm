@@ -10,7 +10,8 @@
 
 import express from 'express';
 import { supabase } from '../config/supabase.js';
-import { authenticateToken } from '../middleware/auth.js';
+import { authenticateToken, requirePermission } from '../middleware/auth.js';
+import { PERMISSIONS } from '../constants/permissions.js';
 
 const router = express.Router();
 
@@ -268,6 +269,27 @@ router.post('/', async (req, res) => {
       });
     }
 
+    // Check subscription limit
+    const { data: limits } = await supabase.rpc('get_organization_limits', {
+      org_id: organizationId
+    });
+
+    const { count: contactCount } = await supabase
+      .from('contacts')
+      .select('*', { count: 'exact', head: true })
+      .eq('organization_id', organizationId);
+
+    if (contactCount >= limits.max_customers) {
+      return res.status(403).json({
+        success: false,
+        error: 'Contact limit reached',
+        message: `Your plan allows ${limits.max_customers} contacts. Please upgrade to add more.`,
+        upgrade_required: true,
+        current: contactCount,
+        limit: limits.max_customers
+      });
+    }
+
     // Check for duplicate phone in same organization
     const { data: existing, error: checkError } = await supabase
       .from('contacts')
@@ -519,9 +541,9 @@ router.put('/:id', async (req, res) => {
 /**
  * DELETE /api/crm/contacts/:id
  * Delete contact (soft delete by setting status to inactive)
- * Only admin/manager can permanently delete
+ * Only admin/manager can permanently delete (Permission: contacts.delete)
  */
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requirePermission(PERMISSIONS.CONTACTS_DELETE), async (req, res) => {
   try {
     const { organizationId, role } = req.user;
     const { id } = req.params;

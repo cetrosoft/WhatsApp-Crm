@@ -4,6 +4,8 @@
  */
 
 import jwt from 'jsonwebtoken';
+import supabase from '../config/supabase.js';
+import { hasPermission } from '../utils/permissions.js';
 
 /**
  * Verify JWT token and attach user to request
@@ -33,7 +35,9 @@ export const authenticate = (req, res, next) => {
     req.user = {
       userId: decoded.userId,
       organizationId: decoded.organizationId,
-      role: decoded.role,
+      role: decoded.role, // Legacy: role slug
+      roleSlug: decoded.roleSlug || decoded.role, // New: role slug from DB
+      rolePermissions: decoded.rolePermissions, // New: permissions array from DB
     };
 
     next();
@@ -59,11 +63,143 @@ export const authorize = (allowedRoles = []) => {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    if (allowedRoles.length > 0 && !allowedRoles.includes(req.user.role)) {
+    const userRole = req.user.roleSlug || req.user.role;
+
+    if (allowedRoles.length > 0 && !allowedRoles.includes(userRole)) {
       return res.status(403).json({
         error: 'Insufficient permissions',
         required: allowedRoles,
-        current: req.user.role,
+        current: userRole,
+      });
+    }
+
+    next();
+  };
+};
+
+/**
+ * Convenience middleware for common role checks
+ */
+export const requireAdmin = authorize(['admin']);
+export const requireAdminOrManager = authorize(['admin', 'manager']);
+
+/**
+ * Enrich user with permissions from database
+ * This middleware fetches the user's permissions JSONB from the database
+ * and attaches it to req.user so permission checks can use it
+ */
+export const enrichUserPermissions = async (req, res, next) => {
+  try {
+    if (!req.user || !req.user.userId) {
+      return next(); // Skip if no user
+    }
+
+    // Fetch user permissions from database
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('permissions')
+      .eq('id', req.user.userId)
+      .single();
+
+    if (error) {
+      console.error('Error fetching user permissions:', error);
+      // Continue without permissions rather than failing the request
+      req.user.permissions = {};
+      return next();
+    }
+
+    // Attach permissions to req.user
+    req.user.permissions = user?.permissions || {};
+    next();
+  } catch (error) {
+    console.error('enrichUserPermissions error:', error);
+    req.user.permissions = {};
+    next();
+  }
+};
+
+/**
+ * Check if user has required permission
+ * Usage: requirePermission('contacts.create')
+ * Note: Must be used AFTER enrichUserPermissions middleware
+ */
+export const requirePermission = (permission) => {
+  return async (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    // If permissions not yet loaded, load them
+    if (req.user.permissions === undefined) {
+      try {
+        const { data: user, error } = await supabase
+          .from('users')
+          .select('permissions')
+          .eq('id', req.user.userId)
+          .single();
+
+        if (!error && user) {
+          req.user.permissions = user.permissions || {};
+        } else {
+          req.user.permissions = {};
+        }
+      } catch (error) {
+        console.error('Error loading permissions:', error);
+        req.user.permissions = {};
+      }
+    }
+
+    // Check permission
+    if (!hasPermission(req.user, permission)) {
+      return res.status(403).json({
+        error: 'Insufficient permissions',
+        required: permission,
+        role: req.user.role,
+      });
+    }
+
+    next();
+  };
+};
+
+/**
+ * Check if user has ANY of the required permissions
+ * Usage: requireAnyPermission(['contacts.create', 'contacts.edit'])
+ */
+export const requireAnyPermission = (permissions) => {
+  return async (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    // If permissions not yet loaded, load them
+    if (req.user.permissions === undefined) {
+      try {
+        const { data: user, error } = await supabase
+          .from('users')
+          .select('permissions')
+          .eq('id', req.user.userId)
+          .single();
+
+        if (!error && user) {
+          req.user.permissions = user.permissions || {};
+        } else {
+          req.user.permissions = {};
+        }
+      } catch (error) {
+        console.error('Error loading permissions:', error);
+        req.user.permissions = {};
+      }
+    }
+
+    // Check if user has at least one permission
+    const hasAny = permissions.some(perm => hasPermission(req.user, perm));
+
+    if (!hasAny) {
+      return res.status(403).json({
+        error: 'Insufficient permissions',
+        required: permissions,
+        role: req.user.role,
       });
     }
 
@@ -88,7 +224,9 @@ export const optionalAuth = (req, res, next) => {
         req.user = {
           userId: decoded.userId,
           organizationId: decoded.organizationId,
-          role: decoded.role,
+          role: decoded.role, // Legacy
+          roleSlug: decoded.roleSlug || decoded.role, // New
+          rolePermissions: decoded.rolePermissions, // New
         };
       }
     }

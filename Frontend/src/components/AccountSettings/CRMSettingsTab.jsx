@@ -8,9 +8,11 @@ import { useTranslation } from 'react-i18next';
 import { tagAPI } from '../../services/api';
 import { Plus, Edit2, Trash2, Tag as TagIcon } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useAuth } from '../../contexts/AuthContext';
 
 const CRMSettingsTab = () => {
   const { t, i18n } = useTranslation(['common', 'settings']);
+  const { user } = useAuth();
   const isRTL = i18n.language === 'ar';
 
   // State
@@ -56,12 +58,24 @@ const CRMSettingsTab = () => {
   };
 
   const handleAddTag = () => {
+    // Check permission before opening modal
+    if (user?.role !== 'admin') {
+      toast.error(t('cannotCreateTags'), { duration: 5000 });
+      return;
+    }
+
     setEditingTag(null);
     setTagForm({ name_en: '', name_ar: '', color: '#6366f1' });
     setShowTagModal(true);
   };
 
   const handleEditTag = (tag) => {
+    // Check permission before opening modal
+    if (user?.role !== 'admin') {
+      toast.error(t('cannotEditTags'), { duration: 5000 });
+      return;
+    }
+
     setEditingTag(tag);
     setTagForm({
       name_en: tag.name_en,
@@ -94,11 +108,24 @@ const CRMSettingsTab = () => {
       loadTags();
     } catch (error) {
       console.error('Error saving tag:', error);
-      toast.error(error.message || 'Failed to save tag');
+
+      if (error.response?.status === 403) {
+        toast.error('You don\'t have permission to manage tags. Only administrators can create, edit, or delete tags.', {
+          duration: 5000
+        });
+      } else {
+        toast.error(error.response?.data?.message || 'Failed to save tag');
+      }
     }
   };
 
   const handleDeleteTag = async (tag) => {
+    // Check permission before showing confirm dialog
+    if (user?.role !== 'admin') {
+      toast.error(t('cannotDeleteTags'), { duration: 5000 });
+      return;
+    }
+
     if (!confirm(`Are you sure you want to delete the tag "${tag.name_en}"?`)) {
       return;
     }
@@ -109,7 +136,14 @@ const CRMSettingsTab = () => {
       loadTags();
     } catch (error) {
       console.error('Error deleting tag:', error);
-      toast.error('Failed to delete tag');
+
+      if (error.response?.status === 403) {
+        toast.error(t('cannotDeleteTags'), {
+          duration: 5000
+        });
+      } else {
+        toast.error('Failed to delete tag');
+      }
     }
   };
 

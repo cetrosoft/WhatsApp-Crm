@@ -10,7 +10,8 @@
 
 import express from 'express';
 import { supabase } from '../config/supabase.js';
-import { authenticateToken } from '../middleware/auth.js';
+import { authenticateToken, requirePermission } from '../middleware/auth.js';
+import { PERMISSIONS } from '../constants/permissions.js';
 
 const router = express.Router();
 
@@ -236,6 +237,34 @@ router.post('/', async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Company name is required'
+      });
+    }
+
+    // Check subscription limit (companies + contacts share "customers" pool)
+    const { data: limits } = await supabase.rpc('get_organization_limits', {
+      org_id: organizationId
+    });
+
+    const { count: companyCount } = await supabase
+      .from('companies')
+      .select('*', { count: 'exact', head: true })
+      .eq('organization_id', organizationId);
+
+    const { count: contactCount } = await supabase
+      .from('contacts')
+      .select('*', { count: 'exact', head: true })
+      .eq('organization_id', organizationId);
+
+    const totalCustomers = (companyCount || 0) + (contactCount || 0);
+
+    if (totalCustomers >= limits.max_customers) {
+      return res.status(403).json({
+        success: false,
+        error: 'Customer limit reached',
+        message: `Your plan allows ${limits.max_customers} total contacts & companies. Please upgrade.`,
+        upgrade_required: true,
+        current: totalCustomers,
+        limit: limits.max_customers
       });
     }
 
@@ -581,9 +610,9 @@ router.post('/:id/document', async (req, res) => {
 
 /**
  * DELETE /api/crm/companies/:id/document/:documentId
- * Delete legal document
+ * Delete legal document (Permission: companies.edit)
  */
-router.delete('/:id/document/:documentId', async (req, res) => {
+router.delete('/:id/document/:documentId', requirePermission(PERMISSIONS.COMPANIES_EDIT), async (req, res) => {
   try {
     const { organizationId } = req.user;
     const { id, documentId } = req.params;
@@ -644,20 +673,12 @@ router.delete('/:id/document/:documentId', async (req, res) => {
 
 /**
  * DELETE /api/crm/companies/:id
- * Delete company
+ * Delete company (Permission: companies.delete)
  */
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requirePermission(PERMISSIONS.COMPANIES_DELETE), async (req, res) => {
   try {
-    const { organizationId, role } = req.user;
+    const { organizationId } = req.user;
     const { id } = req.params;
-
-    // Only admin/manager can delete companies
-    if (!['admin', 'manager'].includes(role)) {
-      return res.status(403).json({
-        success: false,
-        message: 'Only admins and managers can delete companies'
-      });
-    }
 
     // Check if company exists
     const { data: existing, error: checkError } = await supabase

@@ -10,7 +10,8 @@
 
 import express from 'express';
 import { supabase } from '../config/supabase.js';
-import { authenticateToken } from '../middleware/auth.js';
+import { authenticateToken, requirePermission } from '../middleware/auth.js';
+import { PERMISSIONS } from '../constants/permissions.js';
 
 const router = express.Router();
 
@@ -21,7 +22,7 @@ router.use(authenticateToken);
  * GET /api/segments
  * List all segments for the organization
  */
-router.get('/', async (req, res) => {
+router.get('/', requirePermission(PERMISSIONS.SEGMENTS_VIEW), async (req, res) => {
   try {
     const { organizationId } = req.user;
 
@@ -53,7 +54,7 @@ router.get('/', async (req, res) => {
  * GET /api/segments/:id
  * Get single segment by ID
  */
-router.get('/:id', async (req, res) => {
+router.get('/:id', requirePermission(PERMISSIONS.SEGMENTS_VIEW), async (req, res) => {
   try {
     const { organizationId } = req.user;
     const { id } = req.params;
@@ -311,7 +312,7 @@ function buildSegmentQuery(baseQuery, filterRules) {
  * - page: Page number (default: 1)
  * - limit: Items per page (default: 20)
  */
-router.get('/:id/contacts', async (req, res) => {
+router.get('/:id/contacts', requirePermission(PERMISSIONS.SEGMENTS_VIEW), async (req, res) => {
   try {
     const { organizationId } = req.user;
     const { id } = req.params;
@@ -403,9 +404,9 @@ router.get('/:id/contacts', async (req, res) => {
 
 /**
  * POST /api/segments
- * Create new segment
+ * Create new segment (Permission: segments.create)
  */
-router.post('/', async (req, res) => {
+router.post('/', requirePermission(PERMISSIONS.SEGMENTS_CREATE), async (req, res) => {
   try {
     const { organizationId, userId } = req.user;
     const {
@@ -469,9 +470,9 @@ router.post('/', async (req, res) => {
 
 /**
  * PUT /api/segments/:id
- * Update segment
+ * Update segment (Permission: segments.edit)
  */
-router.put('/:id', async (req, res) => {
+router.put('/:id', requirePermission(PERMISSIONS.SEGMENTS_EDIT), async (req, res) => {
   try {
     const { organizationId, userId } = req.user;
     const { id } = req.params;
@@ -544,9 +545,9 @@ router.put('/:id', async (req, res) => {
 
 /**
  * DELETE /api/segments/:id
- * Delete segment
+ * Delete segment (Permission: segments.delete)
  */
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requirePermission(PERMISSIONS.SEGMENTS_DELETE), async (req, res) => {
   try {
     const { organizationId } = req.user;
     const { id } = req.params;
@@ -576,7 +577,7 @@ router.delete('/:id', async (req, res) => {
  * POST /api/segments/:id/calculate
  * Recalculate segment contact count
  */
-router.post('/:id/calculate', async (req, res) => {
+router.post('/:id/calculate', requirePermission(PERMISSIONS.SEGMENTS_VIEW), async (req, res) => {
   try {
     const { organizationId } = req.user;
     const { id } = req.params;

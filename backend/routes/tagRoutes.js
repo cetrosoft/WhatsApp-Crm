@@ -5,8 +5,9 @@
 
 import express from 'express';
 import supabase from '../config/supabase.js';
-import { authenticateToken } from '../middleware/auth.js';
+import { authenticateToken, requirePermission } from '../middleware/auth.js';
 import { setTenantContext } from '../middleware/tenant.js';
+import { PERMISSIONS } from '../constants/permissions.js';
 
 const router = express.Router();
 
@@ -18,7 +19,7 @@ router.use(setTenantContext);
  * GET /api/tags
  * Get all tags for the organization
  */
-router.get('/', async (req, res) => {
+router.get('/', requirePermission(PERMISSIONS.TAGS_VIEW), async (req, res) => {
   try {
     const { data: tags, error } = await supabase
       .from('tags')
@@ -44,9 +45,9 @@ router.get('/', async (req, res) => {
 
 /**
  * POST /api/tags
- * Create a new tag
+ * Create a new tag (Permission: tags.create)
  */
-router.post('/', async (req, res) => {
+router.post('/', requirePermission(PERMISSIONS.TAGS_CREATE), async (req, res) => {
   try {
     const { name_en, name_ar, color } = req.body;
 
@@ -104,9 +105,9 @@ router.post('/', async (req, res) => {
 
 /**
  * PUT /api/tags/:id
- * Update a tag
+ * Update a tag (Permission: tags.edit)
  */
-router.put('/:id', async (req, res) => {
+router.put('/:id', requirePermission(PERMISSIONS.TAGS_EDIT), async (req, res) => {
   try {
     const { id } = req.params;
     const { name_en, name_ar, color } = req.body;
@@ -148,9 +149,9 @@ router.put('/:id', async (req, res) => {
 
 /**
  * DELETE /api/tags/:id
- * Delete a tag
+ * Delete a tag (Permission: tags.delete)
  */
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requirePermission(PERMISSIONS.TAGS_DELETE), async (req, res) => {
   try {
     const { id } = req.params;
 
