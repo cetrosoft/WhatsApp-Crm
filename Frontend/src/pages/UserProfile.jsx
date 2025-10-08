@@ -1,53 +1,57 @@
 /**
- * Account Settings Page
- * Unified portal for organization, subscription, and preferences
+ * User Profile Page
+ * Personal settings for logged-in user (self-service)
+ * Route: /profile
  */
 
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Building2, CreditCard, Settings as SettingsIcon } from 'lucide-react';
+import { User, Lock } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 // Tab Components
-import OrganizationTab from '../components/AccountSettings/OrganizationTab';
-import SubscriptionTab from '../components/AccountSettings/SubscriptionTab';
-import PreferencesTab from '../components/AccountSettings/PreferencesTab';
+import ProfileInfoTab from '../components/UserProfile/ProfileInfoTab';
+import SecurityTab from '../components/UserProfile/SecurityTab';
 
-const AccountSettings = () => {
+const UserProfile = () => {
   const { t } = useTranslation(['common', 'settings']);
-  const [activeTab, setActiveTab] = useState('organization');
+  const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState('profile');
 
   const tabs = [
     {
-      id: 'organization',
-      name: t('settings:organization'),
-      icon: Building2,
-      component: OrganizationTab,
+      id: 'profile',
+      name: t('common:myProfile'),
+      icon: User,
+      component: ProfileInfoTab,
     },
     {
-      id: 'subscription',
-      name: t('settings:subscription'),
-      icon: CreditCard,
-      component: SubscriptionTab,
-    },
-    {
-      id: 'preferences',
-      name: t('settings:preferences'),
-      icon: SettingsIcon,
-      component: PreferencesTab,
+      id: 'security',
+      name: t('common:security'),
+      icon: Lock,
+      component: SecurityTab,
     },
   ];
 
   const ActiveComponent = tabs.find(tab => tab.id === activeTab)?.component;
 
+  if (!user) {
+    return (
+      <div className="flex justify-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
+
   return (
-    <div className="max-w-7xl mx-auto">
+    <div className="max-w-4xl mx-auto">
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">
-          {t('settings:accountSettings')}
+          {t('common:myProfile')}
         </h1>
         <p className="mt-2 text-gray-600">
-          {t('settings:manageYourAccount')}
+          {t('common:manageYourPersonalSettings')}
         </p>
       </div>
 
@@ -82,11 +86,11 @@ const AccountSettings = () => {
 
         {/* Tab Content */}
         <div className="p-6">
-          {ActiveComponent && <ActiveComponent />}
+          {ActiveComponent && <ActiveComponent user={user} />}
         </div>
       </div>
     </div>
   );
 };
 
-export default AccountSettings;
+export default UserProfile;

@@ -4,19 +4,15 @@
  */
 
 /**
- * Calculate effective permissions based on role and custom overrides
- * @param {string} role - User's role (admin, manager, agent, member)
+ * Calculate effective permissions based on role permissions from DB and custom overrides
+ * @param {array} rolePermissions - Role permissions from database (user.rolePermissions)
  * @param {object} customPermissions - Custom grant/revoke permissions
  * @returns {array} Array of effective permission strings
  */
-export const calculateEffectivePermissions = (role, customPermissions = {}) => {
+export const calculateEffectivePermissions = (rolePermissions = [], customPermissions = {}) => {
   const { grant = [], revoke = [] } = customPermissions;
 
-  // Get role default permissions from backend
-  // This will be fetched from API, but we can calculate client-side
-  const rolePermissions = getRoleDefaultPermissions(role);
-
-  // Start with role permissions
+  // Start with role permissions from database
   const effectivePerms = new Set(rolePermissions);
 
   // Add custom grants
@@ -29,53 +25,21 @@ export const calculateEffectivePermissions = (role, customPermissions = {}) => {
 };
 
 /**
- * Get default permissions for a role
- * Note: This should match backend constants
- */
-const getRoleDefaultPermissions = (role) => {
-  const ROLE_PERMISSIONS = {
-    admin: [], // Admin has all permissions (handled specially)
-    manager: [
-      'contacts.view', 'contacts.create', 'contacts.edit', 'contacts.delete', 'contacts.export',
-      'companies.view', 'companies.create', 'companies.edit', 'companies.delete', 'companies.export',
-      'segments.view', 'segments.create', 'segments.edit', 'segments.delete',
-      'tags.view', 'statuses.view', 'lead_sources.view',
-      'users.view', 'users.invite',
-    ],
-    agent: [
-      'contacts.view', 'contacts.create', 'contacts.edit',
-      'companies.view', 'companies.create', 'companies.edit',
-      'segments.view',
-      'tags.view', 'statuses.view', 'lead_sources.view',
-      'users.view',
-    ],
-    member: [
-      'contacts.view',
-      'companies.view',
-      'segments.view',
-      'tags.view', 'statuses.view', 'lead_sources.view',
-      'users.view',
-    ],
-  };
-
-  return ROLE_PERMISSIONS[role] || ROLE_PERMISSIONS.member;
-};
-
-/**
  * Check if user has a specific permission
- * @param {object} user - User object with role and permissions
+ * @param {object} user - User object with rolePermissions and permissions from database
  * @param {string} permission - Permission to check
  * @returns {boolean}
  */
 export const hasPermission = (user, permission) => {
   if (!user) return false;
 
-  // Admin always has all permissions
+  // Admin role always has all permissions (check by role slug)
   if (user.role === 'admin') return true;
 
+  // Calculate effective permissions using DB role permissions + custom overrides
   const effectivePermissions = calculateEffectivePermissions(
-    user.role,
-    user.permissions
+    user.rolePermissions || [],
+    user.permissions || {}
   );
 
   return effectivePermissions.includes(permission);

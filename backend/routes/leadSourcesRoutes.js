@@ -14,8 +14,9 @@ const router = express.Router();
 /**
  * GET /api/lead-sources
  * Get all active lead sources
+ * No specific permission required - all authenticated users can view lookup data
  */
-router.get('/', authenticateToken, requirePermission(PERMISSIONS.LEAD_SOURCES_VIEW), async (req, res) => {
+router.get('/', authenticateToken, async (req, res) => {
   try {
     const { data: leadSources, error } = await supabase
       .from('lead_sources')

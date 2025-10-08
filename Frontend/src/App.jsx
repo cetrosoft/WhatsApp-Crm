@@ -32,6 +32,9 @@ import TeamMembers from "./pages/Team/TeamMembers";
 import RolesPermissions from "./pages/Team/RolesPermissions";
 import CreateRole from "./pages/CreateRole";
 
+// Pages - User Profile
+import UserProfile from "./pages/UserProfile";
+
 import menuConfig from "./menuConfig";
 
 // Map between component names and actual code
@@ -62,6 +65,9 @@ const MainLayout = () => {
         <Route path="/team/roles" element={<RolesPermissions />} />
         <Route path="/team/roles/create" element={<CreateRole />} />
         <Route path="/team/roles/edit/:roleId" element={<CreateRole />} />
+
+        {/* User Profile */}
+        <Route path="/profile" element={<UserProfile />} />
 
         {/* Old routes - will be migrated to new structure */}
         <Route path="/campaigns" element={<Campaigns />} />

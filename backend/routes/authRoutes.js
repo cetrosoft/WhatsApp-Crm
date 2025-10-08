@@ -242,9 +242,12 @@ router.post('/login', async (req, res) => {
         id: user.id,
         email: user.email,
         fullName: user.full_name,
+        phone: user.phone,
         role: user.role?.slug || 'member',
         roleId: user.role?.id,
         roleName: user.role?.name,
+        rolePermissions: user.role?.permissions || [],
+        permissions: user.permissions || { grant: [], revoke: [] },
         avatarUrl: user.avatar_url,
       },
       organization: user.organization,
@@ -274,6 +277,65 @@ router.post('/logout', async (req, res) => {
 });
 
 /**
+ * POST /api/auth/change-password
+ * Change password for authenticated user (self-service)
+ */
+router.post('/change-password', authenticate, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const userId = req.user.userId; // From JWT token
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Current password and new password are required' });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({ error: 'New password must be at least 8 characters' });
+    }
+
+    // Get user email
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('email')
+      .eq('id', userId)
+      .single();
+
+    if (userError || !user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Verify current password by attempting to sign in
+    const { error: signInError } = await supabaseAuth.auth.signInWithPassword({
+      email: user.email,
+      password: currentPassword,
+    });
+
+    if (signInError) {
+      return res.status(401).json({ error: 'Current password is incorrect' });
+    }
+
+    // Update password using Supabase Admin API
+    const { error: updateError } = await supabase.auth.admin.updateUserById(userId, {
+      password: newPassword,
+    });
+
+    if (updateError) {
+      console.error('Password update error:', updateError);
+      return res.status(400).json({ error: 'Failed to update password' });
+    }
+
+    res.json({
+      message: 'Password changed successfully',
+      success: true
+    });
+
+  } catch (error) {
+    console.error('Change password error:', error);
+    res.status(500).json({ error: 'Failed to change password' });
+  }
+});
+
+/**
  * GET /api/auth/me
  * Get current user info (requires auth middleware)
  */
@@ -285,7 +347,8 @@ router.get('/me', authenticate, async (req, res) => {
       .from('users')
       .select(`
         *,
-        organization:organizations(*)
+        organization:organizations(*),
+        role:roles(id, name, slug, permissions)
       `)
       .eq('id', userId)
       .single();
@@ -299,7 +362,12 @@ router.get('/me', authenticate, async (req, res) => {
         id: user.id,
         email: user.email,
         fullName: user.full_name,
-        role: user.role,
+        phone: user.phone,
+        role: user.role?.slug || 'member',
+        roleId: user.role?.id,
+        roleName: user.role?.name,
+        rolePermissions: user.role?.permissions || [],
+        permissions: user.permissions || { grant: [], revoke: [] },
         avatarUrl: user.avatar_url,
       },
       organization: user.organization,

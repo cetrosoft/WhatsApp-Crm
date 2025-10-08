@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Omnichannel CRM SaaS Platform** - A multi-tenant WhatsApp-based customer relationship management platform with bulk messaging, team collaboration, and subscription management.
 
-**Current Status:** Foundation module complete (authentication, subscriptions, i18n). WhatsApp integration in progress.
+**Current Status:** Foundation module complete (authentication, subscriptions, i18n). Team management with custom roles complete. CRM backend complete. WhatsApp integration in progress.
 
 **Original:** Simple WhatsApp bulk sender → **Now:** Full-featured multi-tenant SaaS platform
 
@@ -54,8 +54,12 @@ backend/
 │   └── supabaseAuth.js - Anon key client for auth
 ├── routes/
 │   ├── authRoutes.js - Registration, login, password reset
-│   ├── userRoutes.js - User management, invitations
+│   ├── userRoutes.js - User management, invitations, permissions
+│   ├── roleRoutes.js - Custom roles management
 │   ├── packageRoutes.js - Subscription packages
+│   ├── contactRoutes.js - CRM contacts API
+│   ├── companyRoutes.js - CRM companies API
+│   ├── dealRoutes.js - CRM deals/pipeline API
 │   └── messageRoutes.js - (Old WhatsApp code, needs migration)
 ├── middleware/
 │   ├── auth.js - JWT validation, role authorization
@@ -85,6 +89,14 @@ Frontend/src/
 │   ├── AcceptInvitation.jsx - Team invitation acceptance
 │   ├── dashboard.jsx - Main dashboard with stats
 │   ├── AccountSettings.jsx - Tab-based settings portal
+│   ├── Team/
+│   │   ├── TeamMembers.jsx - Team list + invite (tabs)
+│   │   └── RolesPermissions.jsx - Custom roles management
+│   ├── CreateRole.jsx - Create/edit custom role
+│   ├── Contacts.jsx - CRM contacts (frontend pending)
+│   ├── Companies.jsx - CRM companies (frontend pending)
+│   ├── Segments.jsx - CRM segmentation (frontend pending)
+│   ├── CRMSettings.jsx - CRM settings (frontend pending)
 │   ├── Campaigns.jsx - (Old code, needs update)
 │   ├── Inbox.jsx - (Old code, needs update)
 │   └── Settings.jsx - (Old code, to be deprecated)
@@ -92,16 +104,29 @@ Frontend/src/
 │   ├── Sidebar.jsx - Navigation with language switcher
 │   ├── LanguageSwitcher.jsx - Globe icon toggle
 │   ├── ProtectedRoute.jsx - Auth guard
+│   ├── Team/
+│   │   └── UserTable.jsx - Team members table with dynamic roles
+│   ├── Permissions/
+│   │   ├── PermissionModal.jsx - User permission editor
+│   │   ├── PermissionMatrix.jsx - Permission grid by module
+│   │   ├── PermissionSummary.jsx - Permission stats display
+│   │   └── RoleBuilder.jsx - Custom role permission selector
 │   └── AccountSettings/
 │       ├── OrganizationTab.jsx
 │       ├── TeamTab.jsx
 │       ├── SubscriptionTab.jsx
 │       └── PreferencesTab.jsx
+├── hooks/
+│   ├── useUsers.js - User management operations
+│   ├── useRoles.js - Role fetching from database
+│   └── usePermissions.js - Permission checking utilities
 ├── contexts/
 │   ├── AuthContext.jsx - Authentication state
 │   └── LanguageContext.jsx - Language state + direction
 ├── services/
-│   └── api.js - HTTP client (authAPI, userAPI, packageAPI)
+│   └── api.js - HTTP client (authAPI, userAPI, roleAPI, permissionAPI, packageAPI, crmAPI)
+├── utils/
+│   └── permissionUtils.js - Permission calculation helpers
 ├── i18n.js - i18next configuration
 └── menuConfig.jsx - Sidebar menu configuration
 ```
@@ -117,11 +142,22 @@ Frontend/src/
 - **Multi-tenant Isolation:** RLS policies ensure data separation
 
 ### Database Schema (Supabase)
-**Tables:**
+**Core Tables:**
 - `organizations` - Company/tenant data, links to packages
-- `users` - User profiles with roles (admin, manager, agent, member)
+- `users` - User profiles with role_id (FK to roles), legacy role (slug), custom permissions (JSONB: {grant: [], revoke: []})
+- `roles` - System + custom roles with permissions (JSONB array), is_system flag, organization-scoped
 - `packages` - 5 subscription tiers with features and limits
-- `invitations` - Team invitation tokens
+- `invitations` - Team invitation tokens with role_id
+
+**CRM Tables:** (Backend complete, frontend pending)
+- `contacts` - Lead/contact management
+- `companies` - Company/account management
+- `deals` - Sales opportunities
+- `pipelines` - Sales pipeline definitions
+- `pipeline_stages` - Pipeline stages
+- `segments` - Customer segmentation
+- `interactions` - Communication history
+- `activities` - Tasks and reminders
 
 **Helper Functions:**
 - `get_organization_limits(org_id)` - Returns effective limits
@@ -137,10 +173,20 @@ Frontend/src/
 - `GET /api/auth/me` - Get current user info
 
 **Users:**
-- `GET /api/users` - List organization users
-- `POST /api/users/invite` - Invite team member
+- `GET /api/users` - List organization users (includes role permissions)
+- `POST /api/users/invite` - Invite team member (accepts roleId)
 - `POST /api/users/accept-invitation` - Accept invite
-- `PATCH /api/users/:userId` - Update user (role, status)
+- `PATCH /api/users/:userId` - Update user (roleId or role slug, status)
+- `GET /api/users/:userId/permissions` - Get user effective permissions
+- `PATCH /api/users/:userId/permissions` - Update custom permissions (grant/revoke)
+- `GET /api/users/permissions/available` - Get all available permissions
+
+**Roles:**
+- `GET /api/roles` - List all roles (system + custom) for organization
+- `POST /api/roles` - Create custom role
+- `GET /api/roles/:roleId` - Get single role details
+- `PATCH /api/roles/:roleId` - Update custom role
+- `DELETE /api/roles/:roleId` - Delete custom role (cannot delete system roles)
 
 **Packages:**
 - `GET /api/packages` - List all active packages
@@ -148,6 +194,12 @@ Frontend/src/
 - `GET /api/packages/organization/current` - Current org package
 - `POST /api/packages/organization/upgrade` - Upgrade/downgrade
 - `GET /api/packages/organization/check-feature/:feature` - Check access
+
+**CRM:** (Backend ready, frontend pending)
+- Contacts: 10 endpoints (CRUD, search, filter, tagging)
+- Companies: 7 endpoints (CRUD, contact linking)
+- Deals: 9 endpoints (CRUD, Kanban, stage movement)
+- Pipelines: 11 endpoints (CRUD, stage management)
 
 ### Internationalization (i18n)
 - **Languages:** Arabic (RTL) and English (LTR)
@@ -157,6 +209,54 @@ Frontend/src/
 - **Logical Properties:** Use `ms`/`me` instead of `ml`/`mr`, `ps`/`pe` instead of `pl`/`pr`
 - **Language Switcher:** Globe icon in sidebar footer
 - **Direction Auto-Switch:** Document.dir changes based on language
+
+### Team Management & Permissions System (COMPLETE)
+
+**Architecture Overview:**
+- **Database-Driven Roles:** All roles (system + custom) stored in `roles` table
+- **Dual Column Strategy:** `users.role` (VARCHAR slug, legacy) + `users.role_id` (UUID, new)
+- **Permission Calculation:** `Effective = (Role Permissions + Custom Grants) - Custom Revokes`
+- **Multi-tenant Isolation:** Roles scoped to organization, system roles seeded per org
+
+**Key Components:**
+
+1. **Roles Table:**
+   - `id` (UUID), `organization_id` (FK), `name`, `slug`, `description`
+   - `permissions` (JSONB array) - e.g., `["contacts.view", "deals.edit"]`
+   - `is_system` (boolean) - true for admin/manager/agent/member
+   - `is_default` (boolean) - auto-assign to new users
+
+2. **Users Table:**
+   - `role_id` (UUID FK to roles) - primary role assignment
+   - `role` (VARCHAR) - legacy slug, synced via trigger
+   - `permissions` (JSONB) - custom overrides: `{grant: [], revoke: []}`
+
+3. **Permission System:**
+   - **Role Defaults:** Immutable permissions from role
+   - **Custom Grants:** Additional permissions for user
+   - **Custom Revokes:** Removed permissions for user
+   - **Effective Formula:** `[...rolePerms, ...grants].filter(p => !revokes.includes(p))`
+
+**Frontend Flow:**
+1. `useRoles` hook fetches all roles from database
+2. All dropdowns (invite, role change) populated from database
+3. `PermissionModal` uses `user.rolePermissions` directly (no hardcoded lookups)
+4. Role changes send `roleId` (UUID) to backend
+5. Permission changes send `{grant: [], revoke: []}` arrays
+
+**Backend Flow:**
+1. `GET /api/users` includes role permissions in response
+2. `POST /api/roles` creates custom role (admin only)
+3. `PATCH /api/users/:id/permissions` updates custom overrides
+4. Middleware checks permissions using effective calculation
+
+**Pages:**
+- `/team/members` - List + invite tabs, dynamic role dropdowns
+- `/team/roles` - Role cards (system + custom), create/edit/delete
+- `/team/roles/create` - RoleBuilder with permission matrix
+- `/team/roles/edit/:id` - Edit custom role (system roles readonly)
+
+**Status:** Production-ready, no hardcoded role dependencies
 
 ### WhatsApp Integration (Old Code - Needs Migration)
 - Uses QR code authentication - scan QR from console or frontend
@@ -240,12 +340,14 @@ See these files for detailed information:
 
 ✅ **Completed Modules:**
 - Module 0: Foundation (Auth, Subscriptions, i18n)
+- Team Management (Custom Roles, Permissions, Dynamic UI)
+- CRM Backend (Database + 27 API endpoints)
 
 🔄 **In Progress:**
 - Module 1: WhatsApp Integration (migration needed)
+- Module 2: CRM Frontend (backend complete, UI pending)
 
 ⏳ **Planned:**
-- Module 2: CRM System
 - Module 3: Ticketing System
 - Module 4: Analytics & Reporting
 - Module 5: Billing & Payments

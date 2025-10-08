@@ -129,6 +129,16 @@ export const authAPI = {
   getMe: async () => {
     return await apiCall('/api/auth/me');
   },
+
+  /**
+   * Change password (self-service)
+   */
+  changePassword: async (currentPassword, newPassword) => {
+    return await apiCall('/api/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+  },
 };
 
 /**
@@ -191,6 +201,16 @@ export const userAPI = {
   deleteUser: async (userId) => {
     return await apiCall(`/api/users/${userId}`, {
       method: 'DELETE',
+    });
+  },
+
+  /**
+   * Update own profile (self-service)
+   */
+  updateProfile: async (data) => {
+    return await apiCall('/api/users/profile', {
+      method: 'PATCH',
+      body: JSON.stringify(data),
     });
   },
 };

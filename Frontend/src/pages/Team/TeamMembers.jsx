@@ -11,15 +11,19 @@ import { useUsers } from '../../hooks/useUsers';
 import { useRoles } from '../../hooks/useRoles';
 import UserTable from '../../components/Team/UserTable';
 import PermissionModal from '../../components/Permissions/PermissionModal';
+import EditUserModal from '../../components/Team/EditUserModal';
+import ConfirmDialog from '../../components/Team/ConfirmDialog';
 import { permissionAPI } from '../../services/api';
 
 const TeamMembers = () => {
   const { t } = useTranslation(['common', 'settings']);
-  const { users, loading, inviteUser, changeRole, toggleActive, fetchUsers } = useUsers();
+  const { users, loading, inviteUser, updateUser, deleteUser, changeRole, toggleActive, fetchUsers } = useUsers();
   const { roles, loading: rolesLoading } = useRoles();
 
   const [activeTab, setActiveTab] = useState('members');
   const [showPermissionModal, setShowPermissionModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
@@ -111,6 +115,43 @@ const TeamMembers = () => {
     }
   };
 
+  const handleEditUser = (user) => {
+    setSelectedUser(user);
+    setShowEditModal(true);
+  };
+
+  const handleSaveUser = async (userId, formData) => {
+    try {
+      await updateUser(userId, {
+        fullName: formData.fullName,
+        roleId: formData.roleId,
+        isActive: formData.isActive,
+      });
+      setShowEditModal(false);
+      setSelectedUser(null);
+    } catch (error) {
+      console.error('Error saving user:', error);
+      throw error;
+    }
+  };
+
+  const handleDeleteUser = (user) => {
+    setSelectedUser(user);
+    setShowDeleteDialog(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!selectedUser) return;
+
+    try {
+      await deleteUser(selectedUser.id);
+      setShowDeleteDialog(false);
+      setSelectedUser(null);
+    } catch (error) {
+      console.error('Error deleting user:', error);
+    }
+  };
+
   if (loading || rolesLoading) {
     return (
       <div className="flex justify-center py-12">
@@ -199,6 +240,8 @@ const TeamMembers = () => {
               <UserTable
                 users={filteredUsers}
                 roles={roles}
+                onEdit={handleEditUser}
+                onDelete={handleDeleteUser}
                 onManagePermissions={handleManagePermissions}
                 onChangeRole={handleChangeRole}
                 onToggleActive={toggleActive}
@@ -318,6 +361,7 @@ const TeamMembers = () => {
 
       {/* Modals */}
 
+      {/* Permission Modal */}
       <PermissionModal
         user={selectedUser}
         isOpen={showPermissionModal}
@@ -326,6 +370,33 @@ const TeamMembers = () => {
           setSelectedUser(null);
         }}
         onSave={handleSavePermissions}
+      />
+
+      {/* Edit User Modal */}
+      <EditUserModal
+        isOpen={showEditModal}
+        onClose={() => {
+          setShowEditModal(false);
+          setSelectedUser(null);
+        }}
+        onSave={handleSaveUser}
+        user={selectedUser}
+        roles={roles}
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showDeleteDialog}
+        onClose={() => {
+          setShowDeleteDialog(false);
+          setSelectedUser(null);
+        }}
+        onConfirm={handleConfirmDelete}
+        title={t('common:deleteUser')}
+        message={t('common:confirmDeleteUser', { name: selectedUser?.full_name || selectedUser?.email })}
+        confirmText={t('common:delete')}
+        cancelText={t('common:cancel')}
+        variant="danger"
       />
     </div>
   );

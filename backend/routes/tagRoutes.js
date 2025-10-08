@@ -18,8 +18,9 @@ router.use(setTenantContext);
 /**
  * GET /api/tags
  * Get all tags for the organization
+ * No specific permission required - all authenticated users can view tags
  */
-router.get('/', requirePermission(PERMISSIONS.TAGS_VIEW), async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const { data: tags, error } = await supabase
       .from('tags')

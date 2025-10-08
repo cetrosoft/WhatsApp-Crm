@@ -1,22 +1,33 @@
 /**
  * User Table Component
- * Reusable table for displaying team members
+ * Reusable table for displaying team members with permission-based actions
  */
 
 import React from 'react';
-import { MoreVertical, Shield, UserX, UserCheck } from 'lucide-react';
+import { Shield } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '../../contexts/AuthContext';
+import { hasPermission } from '../../utils/permissionUtils';
 import RoleBadge from './RoleBadge';
+import ActionsDropdown from './ActionsDropdown';
 
 const UserTable = ({
   users = [],
   roles = [],
   onManagePermissions,
+  onEdit,
+  onDelete,
   onChangeRole,
   onToggleActive,
   showPermissions = true
 }) => {
   const { t } = useTranslation(['common', 'settings']);
+  const { user: currentUser } = useAuth();
+
+  // Check permissions
+  const canEditUsers = hasPermission(currentUser, 'users.edit');
+  const canDeleteUsers = hasPermission(currentUser, 'users.delete');
+  const canManagePermissions = hasPermission(currentUser, 'permissions.manage');
 
   // Format date helper
   const formatDate = (dateString) => {
@@ -101,44 +112,18 @@ const UserTable = ({
 
               {/* Actions */}
               <td className="px-4 py-4 whitespace-nowrap text-start">
-                <div className="flex items-center gap-2">
-                  {/* Role Select */}
-                  <select
-                    value={user.role}
-                    onChange={(e) => onChangeRole(user.id, e.target.value)}
-                    className="text-sm border border-gray-300 rounded px-2 py-1"
-                  >
-                    {roles.map((role) => (
-                      <option key={role.id} value={role.slug}>
-                        {role.name}
-                      </option>
-                    ))}
-                  </select>
-
-                  {/* Manage Permissions */}
-                  {showPermissions && (
-                    <button
-                      onClick={() => onManagePermissions(user)}
-                      className="p-1 text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
-                      title={t('common:managePermissions')}
-                    >
-                      <Shield className="w-4 h-4" />
-                    </button>
-                  )}
-
-                  {/* Toggle Active */}
-                  <button
-                    onClick={() => onToggleActive(user.id, user.is_active)}
-                    className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
-                    title={user.is_active ? t('settings:deactivate') : t('settings:activate')}
-                  >
-                    {user.is_active ? (
-                      <UserX className="w-4 h-4" />
-                    ) : (
-                      <UserCheck className="w-4 h-4" />
-                    )}
-                  </button>
-                </div>
+                {(canEditUsers || canDeleteUsers || canManagePermissions) ? (
+                  <ActionsDropdown
+                    user={user}
+                    currentUserId={currentUser?.id}
+                    onEdit={canEditUsers ? onEdit : null}
+                    onManagePermissions={canManagePermissions && showPermissions ? onManagePermissions : null}
+                    onToggleActive={canEditUsers ? onToggleActive : null}
+                    onDelete={canDeleteUsers ? onDelete : null}
+                  />
+                ) : (
+                  <span className="text-sm text-gray-400">—</span>
+                )}
               </td>
             </tr>
           ))}

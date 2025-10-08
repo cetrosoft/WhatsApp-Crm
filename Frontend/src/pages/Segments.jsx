@@ -9,6 +9,7 @@ import { segmentAPI, statusAPI, countryAPI, userAPI, tagAPI, leadSourceAPI } fro
 import { Plus, Edit2, Trash2, Users, RefreshCw, Eye } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
+import { hasPermission } from '../utils/permissionUtils';
 import SegmentBuilderModal from '../components/SegmentBuilderModal';
 
 const Segments = () => {
@@ -16,8 +17,10 @@ const Segments = () => {
   const { user } = useAuth();
   const isRTL = i18n.language === 'ar';
 
-  // Check if user can manage segments (admin or manager only)
-  const canManageSegments = user && ['admin', 'manager'].includes(user.role);
+  // Check permissions from database
+  const canCreateSegments = hasPermission(user, 'segments.create');
+  const canEditSegments = hasPermission(user, 'segments.edit');
+  const canDeleteSegments = hasPermission(user, 'segments.delete');
 
   const [segments, setSegments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -74,7 +77,7 @@ const Segments = () => {
 
   const handleCreateSegment = () => {
     // Check permission before opening modal
-    if (!canManageSegments) {
+    if (!canCreateSegments) {
       toast.error(t('cannotCreateSegments'), { duration: 5000 });
       return;
     }
@@ -85,7 +88,7 @@ const Segments = () => {
 
   const handleEditSegment = (segment) => {
     // Check permission before opening modal
-    if (!canManageSegments) {
+    if (!canEditSegments) {
       toast.error(t('cannotEditSegments'), { duration: 5000 });
       return;
     }
@@ -96,7 +99,7 @@ const Segments = () => {
 
   const handleDeleteSegment = async (segment) => {
     // Check permission before showing confirm dialog
-    if (!canManageSegments) {
+    if (!canDeleteSegments) {
       toast.error(t('cannotDeleteSegments'), { duration: 5000 });
       return;
     }
@@ -155,6 +158,12 @@ const Segments = () => {
       return '';
     }
 
+    // Helper function to detect UUID pattern
+    const isUUID = (str) => {
+      if (!str || typeof str !== 'string') return false;
+      return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+    };
+
     const { operator, conditions } = segment.filter_rules;
     // Translate AND/OR to Arabic
     const operatorText = operator === 'AND'
@@ -171,17 +180,17 @@ const Segments = () => {
       switch (field) {
         case 'status_id':
           const status = lookupData.statuses.find(s => s.id === value);
-          displayValue = status ? (isRTL && status.name_ar ? status.name_ar : status.name_en) : value;
+          displayValue = status ? (isRTL && status.name_ar ? status.name_ar : status.name_en) : (isRTL ? 'حالة غير معروفة' : 'Unknown Status');
           break;
 
         case 'country_id':
           const country = lookupData.countries.find(c => c.id === value);
-          displayValue = country ? (isRTL ? country.name_ar : country.name_en) : value;
+          displayValue = country ? (isRTL ? country.name_ar : country.name_en) : (isRTL ? 'دولة غير معروفة' : 'Unknown Country');
           break;
 
         case 'lead_source':
           const source = lookupData.leadSources.find(s => s.slug === value);
-          displayValue = source ? (isRTL && source.name_ar ? source.name_ar : source.name_en) : value;
+          displayValue = source ? (isRTL && source.name_ar ? source.name_ar : source.name_en) : (isRTL ? 'مصدر غير معروف' : 'Unknown Source');
           break;
 
         case 'assigned_to':
@@ -191,20 +200,25 @@ const Segments = () => {
             return t('assignedTo') + ': ' + t('any');
           }
           const user = lookupData.users.find(u => u.id === value);
-          displayValue = user ? user.full_name : value;
+          displayValue = user ? user.full_name : (isRTL ? 'مستخدم غير معروف' : 'Unknown User');
           break;
 
         case 'tags':
           if (Array.isArray(value) && value.length > 0) {
             const tagNames = value.map(tagId => {
               const tag = lookupData.tags.find(t => t.id === tagId);
-              return tag ? (isRTL && tag.name_ar ? tag.name_ar : tag.name_en) : tagId;
+              if (tag) {
+                return isRTL && tag.name_ar ? tag.name_ar : tag.name_en;
+              }
+              // If tag not found and value is UUID, show friendly message
+              return isUUID(tagId) ? (isRTL ? 'وسم غير معروف' : 'Unknown Tag') : tagId;
             });
             return tagNames.join(', ');
           }
           return '';
 
         case 'created_at':
+        case 'updated_at':
           if (condOp === 'after') {
             return `${t('after')} ${value}`;
           } else if (condOp === 'before') {
@@ -213,7 +227,12 @@ const Segments = () => {
           return value;
 
         default:
-          displayValue = value;
+          // Never show UUIDs - always provide friendly fallback
+          if (isUUID(value)) {
+            displayValue = isRTL ? 'قيمة غير معروفة' : 'Unknown Value';
+          } else {
+            displayValue = value || '';
+          }
       }
 
       return displayValue;
@@ -243,13 +262,15 @@ const Segments = () => {
               {t('createFirstSegment')}
             </p>
           </div>
-          <button
-            onClick={handleCreateSegment}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-          >
-            <Plus className="w-5 h-5" />
-            {t('createSegment')}
-          </button>
+          {canCreateSegments && (
+            <button
+              onClick={handleCreateSegment}
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+            >
+              <Plus className="w-5 h-5" />
+              {t('createSegment')}
+            </button>
+          )}
         </div>
       </div>
 
@@ -263,13 +284,15 @@ const Segments = () => {
           <p className="text-gray-600 mb-6">
             {t('createFirstSegment')}
           </p>
-          <button
-            onClick={handleCreateSegment}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
-          >
-            <Plus className="w-5 h-5" />
-            {t('createSegment')}
-          </button>
+          {canCreateSegments && (
+            <button
+              onClick={handleCreateSegment}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+            >
+              <Plus className="w-5 h-5" />
+              {t('createSegment')}
+            </button>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -339,21 +362,25 @@ const Segments = () => {
                 >
                   <RefreshCw className="w-4 h-4" />
                 </button>
-                <button
-                  onClick={() => handleEditSegment(segment)}
-                  className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                  title={t('edit')}
-                >
-                  <Edit2 className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => handleDeleteSegment(segment)}
-                  disabled={deletingId === segment.id}
-                  className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
-                  title={t('delete')}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                {canEditSegments && (
+                  <button
+                    onClick={() => handleEditSegment(segment)}
+                    className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                    title={t('edit')}
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                )}
+                {canDeleteSegments && (
+                  <button
+                    onClick={() => handleDeleteSegment(segment)}
+                    disabled={deletingId === segment.id}
+                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                    title={t('delete')}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
               </div>
             </div>
           ))}

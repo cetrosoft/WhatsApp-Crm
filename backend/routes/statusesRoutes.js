@@ -14,8 +14,9 @@ const router = express.Router();
 /**
  * GET /api/statuses/contacts
  * Get all active contact statuses
+ * No specific permission required - all authenticated users can view lookup data
  */
-router.get('/contacts', authenticateToken, requirePermission(PERMISSIONS.STATUSES_VIEW), async (req, res) => {
+router.get('/contacts', authenticateToken, async (req, res) => {
   try {
     const { data: statuses, error } = await supabase
       .from('contact_statuses')
@@ -38,8 +39,9 @@ router.get('/contacts', authenticateToken, requirePermission(PERMISSIONS.STATUSE
 /**
  * GET /api/statuses/companies
  * Get all active company statuses
+ * No specific permission required - all authenticated users can view lookup data
  */
-router.get('/companies', authenticateToken, requirePermission(PERMISSIONS.STATUSES_VIEW), async (req, res) => {
+router.get('/companies', authenticateToken, async (req, res) => {
   try {
     const { data: statuses, error } = await supabase
       .from('company_statuses')

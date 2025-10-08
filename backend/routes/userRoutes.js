@@ -380,6 +380,59 @@ router.delete('/:userId', authenticate, setTenantContext, authorize(['admin']), 
 });
 
 /**
+ * PATCH /api/users/profile
+ * Update own profile (self-service - authenticated users only)
+ */
+router.patch('/profile', authenticate, setTenantContext, async (req, res) => {
+  try {
+    const userId = req.user.userId; // From JWT token
+    const { fullName, phone } = req.body;
+
+    // Users can only update their own profile
+    // Only allow updating: full_name, phone
+    const updates = {};
+
+    if (fullName !== undefined) updates.full_name = fullName;
+    if (phone !== undefined) updates.phone = phone;
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ error: 'No fields to update' });
+    }
+
+    const { data: user, error } = await supabase
+      .from('users')
+      .update(updates)
+      .eq('id', userId)
+      .eq('organization_id', req.organizationId)
+      .select()
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({
+      message: 'Profile updated successfully',
+      user: {
+        id: user.id,
+        email: user.email,
+        fullName: user.full_name,
+        phone: user.phone,
+        avatarUrl: user.avatar_url,
+      }
+    });
+
+  } catch (error) {
+    console.error('Update profile error:', error);
+    res.status(500).json({ error: 'Failed to update profile' });
+  }
+});
+
+/**
  * GET /api/users/:userId/permissions
  * Get user's effective permissions (admin only)
  */
