@@ -108,5 +108,8 @@
   "createFirstRole": "Create your first custom role to get started",
   "createRoleDescription": "Define a new role with custom permissions for your team",
   "cannotEditSystemRole": "System roles cannot be edited",
-  "customRole": "Custom Role"
+  "customRole": "Custom Role",
+  "duplicateRole": "Duplicate Role",
+  "roleDuplicated": "Role duplicated successfully",
+  "systemRoleReadOnly": "System roles are read-only. You can view permissions but cannot modify them."
 }

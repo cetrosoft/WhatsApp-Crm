@@ -145,7 +145,7 @@ router.post('/register', async (req, res) => {
         rolePermissions: user.role?.permissions || [],
       },
       process.env.JWT_SECRET,
-      { expiresIn: '7d' }
+      { expiresIn: '1h' }
     );
 
     res.status(201).json({

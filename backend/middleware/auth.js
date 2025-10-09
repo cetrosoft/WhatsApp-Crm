@@ -67,7 +67,7 @@ export const authorize = (allowedRoles = []) => {
 
     if (allowedRoles.length > 0 && !allowedRoles.includes(userRole)) {
       return res.status(403).json({
-        error: 'Insufficient permissions',
+        error: 'INSUFFICIENT_PERMISSIONS',
         required: allowedRoles,
         current: userRole,
       });
@@ -152,8 +152,8 @@ export const requirePermission = (permission) => {
     // Check permission
     if (!hasPermission(req.user, permission)) {
       return res.status(403).json({
-        error: 'Insufficient permissions',
-        required: permission,
+        error: 'INSUFFICIENT_PERMISSIONS',
+        required_permission: permission,
         role: req.user.role,
       });
     }
@@ -197,7 +197,7 @@ export const requireAnyPermission = (permissions) => {
 
     if (!hasAny) {
       return res.status(403).json({
-        error: 'Insufficient permissions',
+        error: 'INSUFFICIENT_PERMISSIONS',
         required: permissions,
         role: req.user.role,
       });

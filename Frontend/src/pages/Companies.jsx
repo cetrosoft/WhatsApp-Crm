@@ -48,7 +48,7 @@ const Companies = () => {
       setCompanies(response.companies || []);
     } catch (error) {
       console.error('Error loading companies:', error);
-      toast.error('Failed to load companies');
+      toast.error(t('failedToLoad', { resource: t('companies') }));
     } finally {
       setLoading(false);
     }
@@ -130,11 +130,11 @@ const Companies = () => {
         console.error('Error deleting company:', error);
 
         if (error.response?.status === 403) {
-          toast.error('You don\'t have permission to delete companies. Only managers and administrators can delete companies.', {
+          toast.error(t('noPermissionDelete', { resource: t('companies') }), {
             duration: 5000
           });
         } else {
-          toast.error(error.response?.data?.message || 'Failed to delete company');
+          toast.error(error.response?.data?.message || t('failedToDelete', { resource: t('company') }));
         }
       } finally {
         setDeletingId(null);

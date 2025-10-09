@@ -9,6 +9,7 @@ import { statusAPI } from '../../services/api';
 import { Plus, Edit2, Trash2, Circle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
+import { hasPermission } from '../../utils/permissionUtils';
 
 const ContactStatusesTab = () => {
   const { t, i18n } = useTranslation(['common', 'settings']);
@@ -65,7 +66,7 @@ const ContactStatusesTab = () => {
       setStatuses(response.statuses || []);
     } catch (error) {
       console.error('Error loading statuses:', error);
-      toast.error('Failed to load contact statuses');
+      toast.error(t('failedToLoad', { resource: t('contactStatuses') }));
     } finally {
       setLoading(false);
     }
@@ -73,8 +74,8 @@ const ContactStatusesTab = () => {
 
   const handleAddStatus = () => {
     // Check permission before opening modal
-    if (user?.role !== 'admin') {
-      toast.error(t('cannotCreateStatuses'), { duration: 5000 });
+    if (!hasPermission(user, 'statuses.create')) {
+      toast.error(t('common:permissionDenied'), { duration: 5000 });
       return;
     }
 
@@ -93,8 +94,8 @@ const ContactStatusesTab = () => {
 
   const handleEditStatus = (status) => {
     // Check permission before opening modal
-    if (user?.role !== 'admin') {
-      toast.error(t('cannotEditStatuses'), { duration: 5000 });
+    if (!hasPermission(user, 'statuses.edit')) {
+      toast.error(t('common:permissionDenied'), { duration: 5000 });
       return;
     }
 
@@ -115,12 +116,12 @@ const ContactStatusesTab = () => {
     e.preventDefault();
 
     if (!statusForm.name_en.trim()) {
-      toast.error('Status name (English) is required');
+      toast.error(t('nameEnglishRequired', { resource: t('status') }));
       return;
     }
 
     if (!editingStatus && !statusForm.slug.trim()) {
-      toast.error('Status slug is required');
+      toast.error(t('slugRequired', { resource: t('status') }));
       return;
     }
 
@@ -128,11 +129,11 @@ const ContactStatusesTab = () => {
       if (editingStatus) {
         // Update existing status
         await statusAPI.updateContactStatus(editingStatus.id, statusForm);
-        toast.success('Status updated successfully');
+        toast.success(t('successUpdated', { resource: t('status') }));
       } else {
         // Create new status
         await statusAPI.createContactStatus(statusForm);
-        toast.success('Status created successfully');
+        toast.success(t('successCreated', { resource: t('status') }));
       }
 
       setShowStatusModal(false);
@@ -141,19 +142,19 @@ const ContactStatusesTab = () => {
       console.error('Error saving status:', error);
 
       if (error.response?.status === 403) {
-        toast.error('You don\'t have permission to manage contact statuses. Only administrators can modify statuses.', {
+        toast.error(t('noPermissionManage', { resource: t('contactStatuses') }), {
           duration: 5000
         });
       } else {
-        toast.error(error.response?.data?.message || 'Failed to save status');
+        toast.error(error.response?.data?.message || t('failedToSave', { resource: t('status') }));
       }
     }
   };
 
   const handleDeleteStatus = async (status) => {
     // Check permission before showing confirm dialog
-    if (user?.role !== 'admin') {
-      toast.error(t('cannotDeleteStatuses'), { duration: 5000 });
+    if (!hasPermission(user, 'statuses.delete')) {
+      toast.error(t('common:permissionDenied'), { duration: 5000 });
       return;
     }
 
@@ -163,7 +164,7 @@ const ContactStatusesTab = () => {
 
     try {
       await statusAPI.deleteContactStatus(status.id);
-      toast.success('Status deleted successfully');
+      toast.success(t('successDeleted', { resource: t('status') }));
       loadStatuses();
     } catch (error) {
       console.error('Error deleting status:', error);
@@ -173,7 +174,7 @@ const ContactStatusesTab = () => {
           duration: 5000
         });
       } else {
-        toast.error('Failed to delete status');
+        toast.error(t('failedToDelete', { resource: t('status') }));
       }
     }
   };

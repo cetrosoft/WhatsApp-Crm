@@ -213,7 +213,7 @@ router.get('/:id', async (req, res) => {
  * - notes: string (optional)
  * - assigned_to: uuid (optional)
  */
-router.post('/', async (req, res) => {
+router.post('/', requirePermission(PERMISSIONS.COMPANIES_CREATE), async (req, res) => {
   try {
     const { organizationId, userId } = req.user;
     const {
@@ -315,7 +315,7 @@ router.post('/', async (req, res) => {
  * PUT /api/crm/companies/:id
  * Update company
  */
-router.put('/:id', async (req, res) => {
+router.put('/:id', requirePermission(PERMISSIONS.COMPANIES_EDIT), async (req, res) => {
   try {
     const { organizationId } = req.user;
     const { id } = req.params;
@@ -406,7 +406,7 @@ router.put('/:id', async (req, res) => {
  * POST /api/crm/companies/:id/logo
  * Upload company logo
  */
-router.post('/:id/logo', async (req, res) => {
+router.post('/:id/logo', requirePermission(PERMISSIONS.COMPANIES_EDIT), async (req, res) => {
   try {
     const { organizationId } = req.user;
     const { id } = req.params;
@@ -508,7 +508,7 @@ router.post('/:id/logo', async (req, res) => {
  * POST /api/crm/companies/:id/document
  * Upload legal document
  */
-router.post('/:id/document', async (req, res) => {
+router.post('/:id/document', requirePermission(PERMISSIONS.COMPANIES_EDIT), async (req, res) => {
   try {
     const { organizationId } = req.user;
     const { id } = req.params;

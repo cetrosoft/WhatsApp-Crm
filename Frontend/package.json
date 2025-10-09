@@ -5,9 +5,16 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "cypress:open": "cypress open",
+    "cypress:run": "cypress run",
+    "test:e2e": "cypress run --spec cypress/e2e/crm-permissions.cy.js",
+    "test:e2e:headed": "cypress run --headed --spec cypress/e2e/crm-permissions.cy.js"
   },
   "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
     "@headlessui/react": "^2.2.9",
     "@supabase/auth-helpers-react": "^0.5.0",
     "@supabase/supabase-js": "^2.58.0",
@@ -25,6 +32,7 @@
   "devDependencies": {
     "@vitejs/plugin-react": "^4.0.0",
     "autoprefixer": "^10.4.21",
+    "cypress": "^13.6.6",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.17",
     "tailwindcss-rtl": "^0.9.0",

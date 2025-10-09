@@ -11,6 +11,7 @@ import { X, Upload, User, Trash2, Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
 import SearchableSelect from './SearchableSelect';
 import { useAuth } from '../contexts/AuthContext';
+import { hasPermission } from '../utils/permissionUtils';
 
 const ContactModal = ({ isOpen, onClose, contact, onSave }) => {
   const { t, i18n } = useTranslation(['contacts', 'common']);
@@ -123,7 +124,7 @@ const ContactModal = ({ isOpen, onClose, contact, onSave }) => {
       setCompanies(companiesRes.companies || []);
     } catch (error) {
       console.error('Error loading lookup data:', error);
-      toast.error('Failed to load form data');
+      toast.error(t('failedToLoadFormData', { ns: 'common' }));
     }
   };
 
@@ -145,14 +146,14 @@ const ContactModal = ({ isOpen, onClose, contact, onSave }) => {
     // Validate file type
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
     if (!allowedTypes.includes(file.type)) {
-      toast.error(t('Invalid file type. Only JPG, PNG, and WEBP are allowed.'));
+      toast.error(t('invalidFileTypeMessage', { ns: 'common', types: 'JPG, PNG, WEBP' }));
       return;
     }
 
     // Validate file size (2MB)
     const maxSize = 2 * 1024 * 1024;
     if (file.size > maxSize) {
-      toast.error(t('File too large. Maximum size is 2MB.'));
+      toast.error(t('fileTooLargeMessage', { ns: 'common', size: '2MB' }));
       return;
     }
 
@@ -205,8 +206,8 @@ const ContactModal = ({ isOpen, onClose, contact, onSave }) => {
       tagId = existingTag.id;
     } else {
       // Check permission before attempting to create new tag
-      if (user?.role !== 'admin') {
-        toast.error(t('cannotCreateTags'), { duration: 5000 });
+      if (!hasPermission(user, 'tags.create')) {
+        toast.error(t('common:permissionDenied'), { duration: 5000 });
         return;
       }
 
@@ -222,11 +223,11 @@ const ContactModal = ({ isOpen, onClose, contact, onSave }) => {
           const newTag = response.tag;
           setTags(prev => [...prev, newTag]);
           tagId = newTag.id;
-          toast.success('New tag created');
+          toast.success(t('newTagCreated', { ns: 'common' }));
         }
       } catch (error) {
         if (error.response?.status === 403) {
-          toast.error(t('cannotCreateTags'), {
+          toast.error(t('cannotCreateTags', { ns: 'common' }), {
             duration: 5000
           });
           return;
@@ -238,7 +239,7 @@ const ContactModal = ({ isOpen, onClose, contact, onSave }) => {
           const reloadedTag = tags.find(t => t.name_en.toLowerCase() === newTagName.toLowerCase());
           if (reloadedTag) tagId = reloadedTag.id;
         } else {
-          toast.error('Failed to create tag');
+          toast.error(t('failedToCreate', { ns: 'common', resource: t('tag', { ns: 'common' }) }));
           return;
         }
       }
@@ -315,7 +316,7 @@ const ContactModal = ({ isOpen, onClose, contact, onSave }) => {
             await contactAPI.uploadAvatar(contactId, avatarFile);
           } catch (uploadError) {
             console.error('Avatar upload error:', uploadError);
-            toast.error('Contact saved but avatar upload failed');
+            toast.error(t('savedButUploadFailed', { ns: 'common', resource: t('contact', { ns: 'common' }), item: t('avatar', { ns: 'common' }) }));
           } finally {
             setUploadingAvatar(false);
           }
@@ -339,8 +340,10 @@ const ContactModal = ({ isOpen, onClose, contact, onSave }) => {
             }
           }
         });
+      } else if (error.response?.data?.error === 'INSUFFICIENT_PERMISSIONS') {
+        toast.error(t('insufficientPermissions', { ns: 'common' }), { duration: 5000 });
       } else {
-        toast.error(error.response?.data?.message || error.message || 'Failed to save contact');
+        toast.error(error.response?.data?.message || error.message || t('failedToSave', { ns: 'common', resource: t('contact', { ns: 'common' }) }));
       }
     } finally {
       setLoading(false);

@@ -119,7 +119,7 @@ const CompanyModal = ({ isOpen, onClose, company, onSave }) => {
     if (!file) return;
 
     if (!company?.id) {
-      toast.error('Please save the company first before uploading logo');
+      toast.error(t('saveBefore', { resource: t('company'), action: t('uploadingLogo') }));
       return;
     }
 
@@ -127,10 +127,10 @@ const CompanyModal = ({ isOpen, onClose, company, onSave }) => {
       setUploading(true);
       const response = await companyAPI.uploadLogo(company.id, file);
       setFormData({ ...formData, logo_url: response.logo_url });
-      toast.success('Logo uploaded successfully');
+      toast.success(t('logoUploaded'));
     } catch (error) {
       console.error('Error uploading logo:', error);
-      toast.error('Failed to upload logo');
+      toast.error(t('failedToUpload', { resource: t('logo') }));
     } finally {
       setUploading(false);
     }
@@ -141,7 +141,7 @@ const CompanyModal = ({ isOpen, onClose, company, onSave }) => {
     if (!file) return;
 
     if (!company?.id) {
-      toast.error('Please save the company first before uploading documents');
+      toast.error(t('saveBefore', { resource: t('company'), action: t('uploadingDocuments') }));
       return;
     }
 
@@ -152,11 +152,11 @@ const CompanyModal = ({ isOpen, onClose, company, onSave }) => {
         ...formData,
         legal_docs: [...formData.legal_docs, response.document]
       });
-      toast.success('Document uploaded successfully');
+      toast.success(t('documentUploaded'));
     } catch (error) {
       console.error('Error uploading document:', error);
-      toast.error('Failed to upload document');
-    } finally {
+      toast.error(t('failedToUpload', { resource: t('document') }));
+    } finally{
       setUploading(false);
     }
   };
@@ -170,10 +170,10 @@ const CompanyModal = ({ isOpen, onClose, company, onSave }) => {
         ...formData,
         legal_docs: formData.legal_docs.filter(doc => doc.id !== documentId)
       });
-      toast.success('Document deleted successfully');
+      toast.success(t('documentDeleted'));
     } catch (error) {
       console.error('Error deleting document:', error);
-      toast.error('Failed to delete document');
+      toast.error(t('failedToDelete', { resource: t('document') }));
     }
   };
 
@@ -207,7 +207,11 @@ const CompanyModal = ({ isOpen, onClose, company, onSave }) => {
       onClose();
     } catch (error) {
       console.error('Error saving company:', error);
-      toast.error(error.message || 'Failed to save company');
+      if (error.response?.data?.error === 'INSUFFICIENT_PERMISSIONS') {
+        toast.error(t('insufficientPermissions'), { duration: 5000 });
+      } else {
+        toast.error(error.message || t('failedToSave', { resource: t('company') }));
+      }
     } finally {
       setLoading(false);
     }

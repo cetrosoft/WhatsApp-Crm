@@ -8,7 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { getPermissionState, buildPermissionKey, getResourceLabel } from '../../utils/matrixUtils';
 
 const MatrixRow = ({
-  resource,
+  resourceData,
   actions = [],
   roleDefaults = [],
   grants = [],
@@ -17,6 +17,12 @@ const MatrixRow = ({
   disabled = false,
 }) => {
   const { t } = useTranslation(['common']);
+  const resource = resourceData.key;
+
+  // Check if this resource has this specific action available
+  const hasAction = (actionKey) => {
+    return resourceData.actions?.some(a => a.key === actionKey);
+  };
 
   const renderCheckbox = (action) => {
     const permissionKey = buildPermissionKey(resource, action.key);
@@ -94,7 +100,9 @@ const MatrixRow = ({
       {/* Action Checkboxes */}
       {actions.map((action) => (
         <td key={action.key} className="px-4 py-3 text-center border-l border-gray-100">
-          {renderCheckbox(action)}
+          {hasAction(action.key) ? renderCheckbox(action) : (
+            <span className="text-gray-300 text-sm">—</span>
+          )}
         </td>
       ))}
     </tr>

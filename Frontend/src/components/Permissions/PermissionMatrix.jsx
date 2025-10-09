@@ -78,7 +78,7 @@ const PermissionMatrix = ({
           {currentModule.resources.map((resource) => (
             <MatrixRow
               key={resource.key}
-              resource={resource.key}
+              resourceData={resource}
               actions={uniqueActions}
               roleDefaults={roleDefaults}
               grants={grants}

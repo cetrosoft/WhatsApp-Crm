@@ -1,11 +1,84 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import menuConfig from "../menuConfig";
-import { ChevronLeft, ChevronRight, LogOut, User as UserIcon, Settings, ChevronDown } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  LogOut,
+  User as UserIcon,
+  Settings,
+  ChevronDown,
+  // Menu icons
+  LayoutDashboard,
+  Users,
+  Contact,
+  Building,
+  Target,
+  TrendingUp,
+  Megaphone,
+  MessageCircle,
+  Mail,
+  MessageSquare,
+  FileText,
+  MessagesSquare,
+  Inbox,
+  UserX,
+  Smartphone,
+  Zap,
+  Ticket,
+  ListChecks,
+  UserCircle,
+  AlertCircle,
+  BarChart3,
+  PieChart,
+  UsersRound,
+  Shield,
+  Activity,
+  UserCog,
+  Plug,
+  Bell,
+  Sliders,
+  Lock
+} from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { useTranslation } from "react-i18next";
 import { hasPermission } from "../utils/permissionUtils";
 import LanguageSwitcher from "./LanguageSwitcher";
+
+// Icon mapping
+const iconMap = {
+  LayoutDashboard,
+  Users,
+  Contact,
+  Building,
+  Target,
+  TrendingUp,
+  Settings,
+  Megaphone,
+  MessageCircle,
+  Mail,
+  MessageSquare,
+  FileText,
+  MessagesSquare,
+  Inbox,
+  UserX,
+  Smartphone,
+  Zap,
+  Ticket,
+  ListChecks,
+  UserCircle,
+  AlertCircle,
+  BarChart3,
+  PieChart,
+  UsersRound,
+  Shield,
+  Activity,
+  UserCog,
+  Plug,
+  Bell,
+  Sliders,
+  Lock
+};
 
 export default function Sidebar({ isOpen, toggleSidebar }) {
   const location = useLocation();
@@ -13,6 +86,7 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
   const { logout, user } = useAuth();
   const { t } = useTranslation('common');
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [expandedItems, setExpandedItems] = useState({});
   const userMenuRef = useRef(null);
 
   // Close dropdown when clicking outside
@@ -33,7 +107,111 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
   }, [showUserMenu]);
 
   // Check if user can access organization settings (requires organization.edit permission)
-  const canAccessOrgSettings = hasPermission(user, 'organization.edit') || user?.role === 'admin';
+  const canAccessOrgSettings = hasPermission(user, 'organization.edit');
+
+  /**
+   * Filter menu items based on user permissions
+   */
+  const filterMenuByPermissions = (items) => {
+    return items.filter(item => {
+      // Check if item is active (defaults to true if not specified)
+      if (item.isActive === false) return false;
+
+      // Check if user has required permission
+      if (item.requiredPermission && !hasPermission(user, item.requiredPermission)) {
+        return false;
+      }
+
+      // Recursively filter children
+      if (item.children) {
+        item.children = filterMenuByPermissions(item.children);
+        // Hide parent if no children visible
+        if (item.children.length === 0) return false;
+      }
+
+      return true;
+    });
+  };
+
+  const filteredMenu = filterMenuByPermissions(JSON.parse(JSON.stringify(menuConfig)));
+
+  // Toggle parent menu item
+  const toggleExpanded = (itemId) => {
+    setExpandedItems(prev => ({
+      ...prev,
+      [itemId]: !prev[itemId]
+    }));
+  };
+
+  // Check if any child is active
+  const isChildActive = (children) => {
+    if (!children) return false;
+    return children.some(child =>
+      child.path === location.pathname ||
+      (child.children && isChildActive(child.children))
+    );
+  };
+
+  // Render menu item (recursive for nested children)
+  const renderMenuItem = (item, level = 0) => {
+    const hasChildren = item.children && item.children.length > 0;
+    const isExpanded = expandedItems[item.id];
+    const isActive = item.path === location.pathname;
+    const hasActiveChild = isChildActive(item.children);
+
+    // Get icon component from mapping
+    const IconComponent = iconMap[item.icon];
+
+    // Item with children (parent)
+    if (hasChildren) {
+      return (
+        <div key={item.id} className={level > 0 ? "ms-4" : ""}>
+          <button
+            onClick={() => toggleExpanded(item.id)}
+            className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all duration-200 ${
+              hasActiveChild
+                ? "bg-[#6264a7] text-white font-semibold"
+                : "hover:bg-[#5a5d8a] hover:text-white"
+            }`}
+          >
+            {IconComponent && <IconComponent size={20} />}
+            {isOpen && (
+              <>
+                <span className="text-sm flex-1 text-start">{t(item.labelKey) || item.label}</span>
+                <ChevronDown
+                  size={16}
+                  className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                />
+              </>
+            )}
+          </button>
+
+          {/* Children */}
+          {isOpen && isExpanded && (
+            <div className="ms-4 mt-1 space-y-1">
+              {item.children.map(child => renderMenuItem(child, level + 1))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // Item with direct path (leaf)
+    return (
+      <Link
+        key={item.id}
+        to={item.path}
+        className={`flex items-center gap-3 p-3 rounded-lg transition-all duration-200 ${
+          isActive
+            ? "bg-[#6264a7] text-white font-semibold shadow-sm"
+            : "hover:bg-[#5a5d8a] hover:text-white"
+        } ${level > 0 ? "ms-4" : ""}`}
+      >
+        {IconComponent && <IconComponent size={20} />}
+        {isOpen && <span className="text-sm">{t(item.labelKey) || item.label}</span>}
+      </Link>
+    );
+  };
 
   return (
     <div
@@ -52,24 +230,8 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
       </div>
 
       {/* Links */}
-      <nav className="flex-1 flex flex-col space-y-1 p-3">
-        {menuConfig.map((item) => (
-          <Link
-            key={item.path}
-            to={item.path}
-            className={`flex items-center gap-3 p-3 rounded-lg transition-all duration-200 ${
-              location.pathname === item.path
-                ? "bg-[#6264a7] text-white font-semibold shadow-sm"
-                : "hover:bg-[#5a5d8a] hover:text-white"
-            }`}
-          >
-            {/* أيقونة */}
-            <span className="text-lg">{item.icon}</span>
-
-            {/* النص يظهر فقط لما القائمة مفتوحة */}
-            {isOpen && <span className="text-sm">{item.label}</span>}
-          </Link>
-        ))}
+      <nav className="flex-1 flex flex-col space-y-1 p-3 overflow-y-auto">
+        {filteredMenu.map(item => renderMenuItem(item))}
       </nav>
 
       {/* Footer: User Menu, Language Switcher & Logout */}

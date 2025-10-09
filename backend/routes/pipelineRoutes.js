@@ -29,7 +29,8 @@ router.get('/', async (req, res) => {
       .from('pipelines')
       .select(`
         *,
-        created_by_user:users!pipelines_created_by_fkey(id, full_name)
+        created_by_user:users!pipelines_created_by_fkey(id, full_name),
+        stages:pipeline_stages(id, name, display_order, color)
       `)
       .eq('organization_id', organizationId)
       .order('created_at', { ascending: false });
@@ -65,16 +66,23 @@ router.get('/', async (req, res) => {
       dealCountMap[d.pipeline_id] = (dealCountMap[d.pipeline_id] || 0) + 1;
     });
 
-    // Add counts to pipelines
-    const pipelinesWithCounts = data.map(pipeline => ({
-      ...pipeline,
-      stage_count: stageCountMap[pipeline.id] || 0,
-      deal_count: dealCountMap[pipeline.id] || 0
-    }));
+    // Add counts to pipelines and sort stages
+    const pipelinesWithCounts = data.map(pipeline => {
+      // Sort stages by display order
+      if (pipeline.stages) {
+        pipeline.stages.sort((a, b) => a.display_order - b.display_order);
+      }
+
+      return {
+        ...pipeline,
+        stage_count: stageCountMap[pipeline.id] || 0,
+        deal_count: dealCountMap[pipeline.id] || 0
+      };
+    });
 
     res.json({
       success: true,
-      data: pipelinesWithCounts
+      pipelines: pipelinesWithCounts
     });
   } catch (error) {
     console.error('Error fetching pipelines:', error);
@@ -147,17 +155,18 @@ router.get('/:id', async (req, res) => {
 
 /**
  * POST /api/crm/pipelines
- * Create new pipeline
+ * Create new pipeline with stages
  *
  * Body:
  * - name: string (required)
  * - description: string (optional)
  * - is_default: boolean (optional)
+ * - stages: array of {name, color, display_order} (optional)
  */
 router.post('/', async (req, res) => {
   try {
     const { organizationId, userId } = req.user;
-    const { name, description, is_default = false } = req.body;
+    const { name, description, is_default = false, stages } = req.body;
 
     // Validation
     if (!name) {
@@ -194,10 +203,35 @@ router.post('/', async (req, res) => {
 
     if (error) throw error;
 
+    // Create stages if provided
+    if (stages && Array.isArray(stages) && stages.length > 0) {
+      const stageInserts = stages.map(stage => ({
+        pipeline_id: data.id,
+        name: stage.name,
+        color: stage.color || 'blue',
+        display_order: stage.display_order
+      }));
+
+      await supabase
+        .from('pipeline_stages')
+        .insert(stageInserts);
+    }
+
+    // Fetch pipeline with stages
+    const { data: pipelineWithStages } = await supabase
+      .from('pipelines')
+      .select(`
+        *,
+        created_by_user:users!pipelines_created_by_fkey(id, full_name),
+        stages:pipeline_stages(*)
+      `)
+      .eq('id', data.id)
+      .single();
+
     res.status(201).json({
       success: true,
       message: 'Pipeline created successfully',
-      data
+      pipeline: pipelineWithStages
     });
   } catch (error) {
     console.error('Error creating pipeline:', error);
@@ -211,13 +245,13 @@ router.post('/', async (req, res) => {
 
 /**
  * PUT /api/crm/pipelines/:id
- * Update pipeline
+ * Update pipeline and stages
  */
 router.put('/:id', async (req, res) => {
   try {
     const { organizationId } = req.user;
     const { id } = req.params;
-    const { name, description, is_default } = req.body;
+    const { name, description, is_default, stages } = req.body;
 
     // Check if pipeline exists
     const { data: existing, error: checkError } = await supabase
@@ -265,10 +299,107 @@ router.put('/:id', async (req, res) => {
 
     if (error) throw error;
 
+    // Handle stages if provided
+    if (stages && Array.isArray(stages)) {
+      console.log('💾 [BACKEND] Updating stages:', stages.map(s => ({ name: s.name, display_order: s.display_order, id: s.id })));
+
+      // Get existing stages
+      const { data: existingStages } = await supabase
+        .from('pipeline_stages')
+        .select('id')
+        .eq('pipeline_id', id);
+
+      const existingStageIds = existingStages?.map(s => s.id) || [];
+      const providedStageIds = stages.filter(s => s.id).map(s => s.id);
+
+      // Delete stages that are no longer in the list
+      const stagesToDelete = existingStageIds.filter(sid => !providedStageIds.includes(sid));
+      if (stagesToDelete.length > 0) {
+        console.log('🗑️ [BACKEND] Deleting stages:', stagesToDelete);
+        await supabase
+          .from('pipeline_stages')
+          .delete()
+          .in('id', stagesToDelete);
+      }
+
+      // PHASE 1: Set all stages to temporary high values to avoid unique constraint conflicts
+      console.log('🔄 [BACKEND] Phase 1: Setting temporary display_order values...');
+      for (let i = 0; i < stages.length; i++) {
+        const stage = stages[i];
+        if (stage.id) {
+          await supabase
+            .from('pipeline_stages')
+            .update({ display_order: 1000 + i }) // Temporary high values
+            .eq('id', stage.id)
+            .eq('pipeline_id', id);
+        }
+      }
+
+      // PHASE 2: Update or create stages with correct values
+      console.log('🔄 [BACKEND] Phase 2: Setting final values...');
+      for (const stage of stages) {
+        if (stage.id) {
+          // Update existing stage
+          console.log('✏️ [BACKEND] Updating stage:', { id: stage.id, name: stage.name, display_order: stage.display_order });
+          const { data: updateData, error: updateError } = await supabase
+            .from('pipeline_stages')
+            .update({
+              name: stage.name,
+              color: stage.color,
+              display_order: stage.display_order
+            })
+            .eq('id', stage.id)
+            .eq('pipeline_id', id)
+            .select();
+
+          if (updateError) {
+            console.error('❌ [BACKEND] Update error:', updateError);
+          } else {
+            console.log('✅ [BACKEND] Updated successfully:', updateData);
+          }
+        } else {
+          // Create new stage
+          console.log('➕ [BACKEND] Creating stage:', { name: stage.name, display_order: stage.display_order });
+          const { data: insertData, error: insertError } = await supabase
+            .from('pipeline_stages')
+            .insert({
+              pipeline_id: id,
+              name: stage.name,
+              color: stage.color,
+              display_order: stage.display_order
+            })
+            .select();
+
+          if (insertError) {
+            console.error('❌ [BACKEND] Insert error:', insertError);
+          } else {
+            console.log('✅ [BACKEND] Inserted successfully:', insertData);
+          }
+        }
+      }
+    }
+
+    // Fetch updated pipeline with stages
+    const { data: updatedPipeline } = await supabase
+      .from('pipelines')
+      .select(`
+        *,
+        created_by_user:users!pipelines_created_by_fkey(id, full_name),
+        stages:pipeline_stages(*)
+      `)
+      .eq('id', id)
+      .single();
+
+    // Sort stages by display_order
+    if (updatedPipeline?.stages) {
+      updatedPipeline.stages.sort((a, b) => a.display_order - b.display_order);
+      console.log('✅ [BACKEND] Returning sorted stages:', updatedPipeline.stages.map(s => ({ name: s.name, display_order: s.display_order })));
+    }
+
     res.json({
       success: true,
       message: 'Pipeline updated successfully',
-      data
+      pipeline: updatedPipeline
     });
   } catch (error) {
     console.error('Error updating pipeline:', error);
@@ -347,6 +478,59 @@ router.delete('/:id', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to delete pipeline',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/crm/pipelines/:id/deals
+ * Get all deals for a pipeline (Kanban board data)
+ */
+router.get('/:id/deals', async (req, res) => {
+  try {
+    const { organizationId } = req.user;
+    const { id: pipelineId } = req.params;
+
+    // Verify pipeline belongs to organization
+    const { data: pipeline, error: pipelineError } = await supabase
+      .from('pipelines')
+      .select('id')
+      .eq('id', pipelineId)
+      .eq('organization_id', organizationId)
+      .single();
+
+    if (pipelineError || !pipeline) {
+      return res.status(404).json({
+        success: false,
+        message: 'Pipeline not found'
+      });
+    }
+
+    // Get deals with related data
+    const { data: deals, error: dealsError } = await supabase
+      .from('deals')
+      .select(`
+        *,
+        contact:contacts(id, name, phone, avatar_url),
+        company:companies(id, name, logo_url),
+        assigned_user:users!deals_assigned_to_fkey(id, full_name, avatar_url)
+      `)
+      .eq('pipeline_id', pipelineId)
+      .eq('organization_id', organizationId)
+      .order('created_at', { ascending: false });
+
+    if (dealsError) throw dealsError;
+
+    res.json({
+      success: true,
+      deals: deals || []
+    });
+  } catch (error) {
+    console.error('Error fetching pipeline deals:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch pipeline deals',
       error: error.message
     });
   }

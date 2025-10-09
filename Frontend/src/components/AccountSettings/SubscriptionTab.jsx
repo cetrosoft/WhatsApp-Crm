@@ -10,7 +10,7 @@ import { CreditCard, TrendingUp, Check, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const SubscriptionTab = () => {
-  const { t } = useTranslation('settings');
+  const { t } = useTranslation(['settings', 'common']);
   const [packageData, setPackageData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -23,7 +23,7 @@ const SubscriptionTab = () => {
       const data = await packageAPI.getCurrentPackage();
       setPackageData(data);
     } catch (error) {
-      toast.error('Failed to load package information');
+      toast.error(t('failedToLoad', { ns: 'common', resource: t('packageInformation') }));
     } finally {
       setLoading(false);
     }
@@ -175,7 +175,7 @@ const SubscriptionTab = () => {
           <button
             onClick={() => {
               // TODO: Navigate to packages page or open upgrade modal
-              toast.info('Upgrade feature coming soon');
+              toast.info(t('upgradeFeatureComingSoon', { ns: 'common' }));
             }}
             className="flex items-center gap-2 px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
           >

@@ -179,7 +179,7 @@ router.patch('/:roleId', requirePermission('permissions.manage'), async (req, re
     const { roleId } = req.params;
     const { name, description, permissions } = req.body;
 
-    // Check if role exists and is not a system role
+    // Check if role exists and is not admin role
     const { data: role, error: fetchError } = await supabase
       .from('roles')
       .select('*')
@@ -191,8 +191,8 @@ router.patch('/:roleId', requirePermission('permissions.manage'), async (req, re
       return res.status(404).json({ error: 'Role not found' });
     }
 
-    if (role.is_system) {
-      return res.status(403).json({ error: 'Cannot modify system roles' });
+    if (role.slug === 'admin') {
+      return res.status(403).json({ error: 'Cannot modify admin role' });
     }
 
     // Build update object

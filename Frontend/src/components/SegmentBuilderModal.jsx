@@ -121,7 +121,7 @@ const SegmentBuilderModal = ({ isOpen, onClose, segment, onSave }) => {
       });
     } catch (error) {
       console.error('Error loading lookup data:', error);
-      toast.error('Failed to load form data');
+      toast.error(t('failedToLoadFormData'));
     }
   };
 
@@ -287,12 +287,12 @@ const SegmentBuilderModal = ({ isOpen, onClose, segment, onSave }) => {
     e.preventDefault();
 
     if (!formData.name_en.trim()) {
-      toast.error('Segment name (English) is required');
+      toast.error(t('nameEnglishRequired', { resource: t('segment') }));
       return;
     }
 
     if (formData.filter_rules.conditions.length === 0) {
-      toast.error('Please add at least one filter condition');
+      toast.error(t('atLeastOneCondition'));
       return;
     }
 
@@ -315,12 +315,12 @@ const SegmentBuilderModal = ({ isOpen, onClose, segment, onSave }) => {
     } catch (error) {
       console.error('Error saving segment:', error);
 
-      if (error.response?.status === 403) {
-        toast.error('You don\'t have permission to create/edit segments. Only managers and administrators can manage segments.', {
+      if (error.response?.data?.error === 'INSUFFICIENT_PERMISSIONS') {
+        toast.error(t('insufficientPermissions'), {
           duration: 5000
         });
       } else {
-        toast.error(error.response?.data?.message || error.message || 'Failed to save segment');
+        toast.error(error.response?.data?.message || error.message || t('failedToSave', { resource: t('segment') }));
       }
     } finally {
       setLoading(false);

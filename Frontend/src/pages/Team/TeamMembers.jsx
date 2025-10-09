@@ -242,10 +242,9 @@ const TeamMembers = () => {
                 roles={roles}
                 onEdit={handleEditUser}
                 onDelete={handleDeleteUser}
-                onManagePermissions={handleManagePermissions}
                 onChangeRole={handleChangeRole}
                 onToggleActive={toggleActive}
-                showPermissions={true}
+                showPermissions={false}
               />
             </div>
           )}

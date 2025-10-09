@@ -1,0 +1,23 @@
+{
+  "name": "omnichannel-crm-saas",
+  "version": "1.0.0",
+  "description": "Multi-tenant WhatsApp-based CRM platform with bulk messaging and team collaboration",
+  "private": true,
+  "scripts": {
+    "test:permissions": "node scripts/test-permissions.js",
+    "install:all": "cd backend && npm install && cd ../Frontend && npm install",
+    "dev:backend": "cd backend && npm start",
+    "dev:frontend": "cd Frontend && npm run dev",
+    "test:backend": "cd backend && npm test",
+    "test:frontend": "cd Frontend && npm run cypress:run"
+  },
+  "keywords": [
+    "crm",
+    "whatsapp",
+    "saas",
+    "multi-tenant",
+    "omnichannel"
+  ],
+  "author": "",
+  "license": "ISC"
+}

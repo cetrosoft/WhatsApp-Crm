@@ -69,7 +69,7 @@ const Segments = () => {
       setSegments(response.segments || []);
     } catch (error) {
       console.error('Error loading segments:', error);
-      toast.error('Failed to load segments');
+      toast.error(t('failedToLoad', { resource: t('segments') }));
     } finally {
       setLoading(false);
     }
@@ -115,10 +115,10 @@ const Segments = () => {
       loadSegments();
     } catch (error) {
       console.error('Error deleting segment:', error);
-      if (error.response?.status === 403) {
-        toast.error(t('cannotDeleteSegments'), { duration: 5000 });
+      if (error.response?.data?.error === 'INSUFFICIENT_PERMISSIONS') {
+        toast.error(t('insufficientPermissions'), { duration: 5000 });
       } else {
-        toast.error('Failed to delete segment');
+        toast.error(t('failedToDelete', { resource: t('segment') }));
       }
     } finally {
       setDeletingId(null);
@@ -132,7 +132,7 @@ const Segments = () => {
       loadSegments();
     } catch (error) {
       console.error('Error refreshing count:', error);
-      toast.error('Failed to refresh count');
+      toast.error(t('failedToUpdate', { resource: t('count') }));
     }
   };
 

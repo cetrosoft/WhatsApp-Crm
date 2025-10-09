@@ -119,13 +119,14 @@ export const hasAllPermissions = (user, permissions) => {
 
 /**
  * Get all permissions for a user (for display purposes)
- * @param {object} user - User object with role and permissions
+ * @param {object} user - User object with role/rolePermissions and custom permissions
  * @returns {object} Object with rolePermissions, customPermissions, and effectivePermissions
  */
 export const getUserPermissionsSummary = (user) => {
-  const rolePermissions = getRolePermissions(user.role);
+  // Use rolePermissions from database if available, otherwise fall back to hardcoded
+  const rolePermissions = user.rolePermissions || getRolePermissions(user.role);
   const customPermissions = user.permissions || {};
-  const effectivePermissions = getEffectivePermissions(user.role, customPermissions);
+  const effectivePermissions = getEffectivePermissions(rolePermissions, customPermissions);
 
   return {
     role: user.role,

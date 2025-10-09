@@ -440,10 +440,17 @@ router.get('/:userId/permissions', authenticate, setTenantContext, requirePermis
   try {
     const { userId } = req.params;
 
-    // Get user with permissions
+    // Get user with role permissions from database
     const { data: user, error } = await supabase
       .from('users')
-      .select('id, email, full_name, role, permissions')
+      .select(`
+        id,
+        email,
+        full_name,
+        role,
+        permissions,
+        role:roles(id, slug, permissions)
+      `)
       .eq('id', userId)
       .eq('organization_id', req.organizationId)
       .single();
@@ -452,8 +459,9 @@ router.get('/:userId/permissions', authenticate, setTenantContext, requirePermis
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Get permission summary
-    const summary = getUserPermissionsSummary(user);
+    // Get permission summary with DB role permissions
+    const rolePermissions = user.role?.permissions || [];
+    const summary = getUserPermissionsSummary({ ...user, rolePermissions });
 
     res.json({
       userId: user.id,
@@ -501,7 +509,7 @@ router.patch('/:userId/permissions', authenticate, setTenantContext, requirePerm
     }
 
     // Update permissions
-    const { data: updatedUser, error: updateError } = await supabase
+    const { data: updatedUser, error: updateError} = await supabase
       .from('users')
       .update({
         permissions: {
@@ -511,15 +519,23 @@ router.patch('/:userId/permissions', authenticate, setTenantContext, requirePerm
       })
       .eq('id', userId)
       .eq('organization_id', req.organizationId)
-      .select('id, email, full_name, role, permissions')
+      .select(`
+        id,
+        email,
+        full_name,
+        role,
+        permissions,
+        role:roles(id, slug, permissions)
+      `)
       .single();
 
     if (updateError) {
       throw updateError;
     }
 
-    // Get permission summary
-    const summary = getUserPermissionsSummary(updatedUser);
+    // Get permission summary with DB role permissions
+    const rolePermissions = updatedUser.role?.permissions || [];
+    const summary = getUserPermissionsSummary({ ...updatedUser, rolePermissions });
 
     res.json({
       message: 'Permissions updated successfully',
@@ -543,15 +559,26 @@ router.patch('/:userId/permissions', authenticate, setTenantContext, requirePerm
  */
 router.get('/permissions/available', authenticate, setTenantContext, authorize(['admin']), async (req, res) => {
   try {
-    // Return PERMISSION_GROUPS as-is (object format expected by frontend utils)
+    // Fetch roles from database to get current permissions
+    const { data: roles, error: rolesError } = await supabase
+      .from('roles')
+      .select('slug, permissions')
+      .eq('organization_id', req.organizationId);
+
+    if (rolesError) {
+      throw rolesError;
+    }
+
+    // Build roles map with DB permissions
+    const rolesMap = {};
+    roles.forEach(role => {
+      rolesMap[role.slug] = role.permissions || [];
+    });
+
+    // Return PERMISSION_GROUPS and DB-sourced role permissions
     res.json({
       groups: PERMISSION_GROUPS,
-      roles: {
-        admin: ROLE_PERMISSIONS.admin,
-        manager: ROLE_PERMISSIONS.manager,
-        agent: ROLE_PERMISSIONS.agent,
-        member: ROLE_PERMISSIONS.member,
-      }
+      roles: rolesMap
     });
   } catch (error) {
     console.error('Get available permissions error:', error);

@@ -173,6 +173,64 @@ router.get('/kanban/:pipelineId', async (req, res) => {
 });
 
 /**
+ * GET /api/crm/deals/stats
+ * Get deal statistics for dashboard
+ * MUST be before /:id route to avoid UUID parsing error
+ */
+router.get('/stats', async (req, res) => {
+  try {
+    const { organizationId } = req.user;
+
+    // Get counts and revenue
+    const { data: deals, error } = await supabase
+      .from('deals')
+      .select('status, value')
+      .eq('organization_id', organizationId);
+
+    if (error) throw error;
+
+    // Calculate statistics
+    const stats = {
+      total_count: deals.length,
+      open_count: deals.filter(d => d.status === 'open').length,
+      won_count: deals.filter(d => d.status === 'won').length,
+      lost_count: deals.filter(d => d.status === 'lost').length,
+      total_revenue: deals
+        .filter(d => d.status === 'won')
+        .reduce((sum, d) => sum + (parseFloat(d.value) || 0), 0),
+      total_pipeline_value: deals
+        .filter(d => d.status === 'open')
+        .reduce((sum, d) => sum + (parseFloat(d.value) || 0), 0),
+      average_deal_size: 0,
+      conversion_rate: 0
+    };
+
+    // Calculate average deal size
+    if (stats.won_count > 0) {
+      stats.average_deal_size = stats.total_revenue / stats.won_count;
+    }
+
+    // Calculate conversion rate
+    const closedCount = stats.won_count + stats.lost_count;
+    if (closedCount > 0) {
+      stats.conversion_rate = (stats.won_count / closedCount) * 100;
+    }
+
+    res.json({
+      success: true,
+      stats
+    });
+  } catch (error) {
+    console.error('Error fetching deal stats:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch deal statistics',
+      error: error.message
+    });
+  }
+});
+
+/**
  * GET /api/crm/deals/:id
  * Get single deal by ID with full details
  */

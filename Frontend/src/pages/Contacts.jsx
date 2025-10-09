@@ -13,7 +13,7 @@ import SearchableSelect from '../components/SearchableSelect';
 import MultiSelectTags from '../components/MultiSelectTags';
 
 const Contacts = () => {
-  const { t, i18n } = useTranslation('contacts');
+  const { t, i18n } = useTranslation(['contacts', 'common']);
   const isRTL = i18n.language === 'ar';
 
   // State
@@ -107,7 +107,7 @@ const Contacts = () => {
       }
     } catch (error) {
       console.error('Error loading contacts:', error);
-      toast.error(t('Failed to load contacts'));
+      toast.error(t('failedToLoad', { ns: 'common', resource: t('contacts', { ns: 'common' }) }));
     } finally {
       setLoading(false);
     }
@@ -162,11 +162,11 @@ const Contacts = () => {
       console.error('Error deleting contact:', error);
 
       if (error.response?.status === 403) {
-        toast.error('You don\'t have permission to delete contacts. Only managers and administrators can delete contacts.', {
+        toast.error(t('noPermissionDelete', { ns: 'common', resource: t('contacts', { ns: 'common' }) }), {
           duration: 5000
         });
       } else {
-        toast.error(error.response?.data?.message || 'Failed to delete contact');
+        toast.error(error.response?.data?.message || t('failedToDelete', { ns: 'common', resource: t('contact', { ns: 'common' }) }));
       }
     } finally {
       setDeleteModalOpen(false);

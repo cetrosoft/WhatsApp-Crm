@@ -10,7 +10,7 @@ import { Mail, UserPlus, MoreVertical, Shield, UserCheck, UserX } from 'lucide-r
 import toast from 'react-hot-toast';
 
 const TeamTab = () => {
-  const { t } = useTranslation('settings');
+  const { t } = useTranslation(['settings', 'common']);
   const [users, setUsers] = useState([]);
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -31,7 +31,7 @@ const TeamTab = () => {
       const data = await userAPI.getUsers();
       setUsers(data.users || []);
     } catch (error) {
-      toast.error('Failed to load team members');
+      toast.error(t('failedToLoadTeamMembers', { ns: 'common' }));
     } finally {
       setLoading(false);
     }
@@ -49,7 +49,7 @@ const TeamTab = () => {
         }
       }
     } catch (error) {
-      toast.error('Failed to load roles');
+      toast.error(t('failedToLoadRoles', { ns: 'common' }));
     }
   };
 
@@ -66,7 +66,7 @@ const TeamTab = () => {
       const memberRole = roles.find(r => r.slug === 'member');
       setInviteData({ email: '', roleId: memberRole?.id || '' });
     } catch (error) {
-      toast.error(error.message || 'Failed to send invitation');
+      toast.error(error.message || t('failedToSave', { ns: 'common', resource: t('invitation', { ns: 'common' }) }));
     } finally {
       setInviting(false);
     }
@@ -78,7 +78,7 @@ const TeamTab = () => {
       toast.success(t('roleUpdated'));
       fetchUsers();
     } catch (error) {
-      toast.error(error.message || 'Failed to update role');
+      toast.error(error.message || t('failedToUpdate', { ns: 'common', resource: t('role', { ns: 'settings' }) }));
     }
   };
 
@@ -88,7 +88,7 @@ const TeamTab = () => {
       toast.success(isActive ? t('userDeactivated') : t('userActivated'));
       fetchUsers();
     } catch (error) {
-      toast.error(error.message || 'Failed to update user status');
+      toast.error(error.message || t('failedToUpdate', { ns: 'common', resource: t('user', { ns: 'common' }) }));
     }
   };
 

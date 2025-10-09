@@ -28,6 +28,37 @@ export const PERMISSIONS = {
   SEGMENTS_EDIT: 'segments.edit',
   SEGMENTS_DELETE: 'segments.delete',
 
+  // CRM - Deals
+  DEALS_VIEW: 'deals.view',
+  DEALS_CREATE: 'deals.create',
+  DEALS_EDIT: 'deals.edit',
+  DEALS_DELETE: 'deals.delete',
+  DEALS_EXPORT: 'deals.export',
+
+  // Campaigns
+  CAMPAIGNS_VIEW: 'campaigns.view',
+  CAMPAIGNS_CREATE: 'campaigns.create',
+  CAMPAIGNS_EDIT: 'campaigns.edit',
+  CAMPAIGNS_DELETE: 'campaigns.delete',
+  CAMPAIGNS_SEND: 'campaigns.send',
+
+  // Conversations
+  CONVERSATIONS_VIEW: 'conversations.view',
+  CONVERSATIONS_REPLY: 'conversations.reply',
+  CONVERSATIONS_ASSIGN: 'conversations.assign',
+  CONVERSATIONS_MANAGE: 'conversations.manage',
+
+  // Tickets
+  TICKETS_VIEW: 'tickets.view',
+  TICKETS_CREATE: 'tickets.create',
+  TICKETS_EDIT: 'tickets.edit',
+  TICKETS_DELETE: 'tickets.delete',
+  TICKETS_ASSIGN: 'tickets.assign',
+
+  // Analytics
+  ANALYTICS_VIEW: 'analytics.view',
+  ANALYTICS_EXPORT: 'analytics.export',
+
   // Settings - Tags
   TAGS_VIEW: 'tags.view',
   TAGS_CREATE: 'tags.create',
@@ -65,7 +96,7 @@ export const PERMISSIONS = {
 
 export const ROLE_PERMISSIONS = {
   admin: [
-    // Full access to everything
+    // CRM - Full access
     PERMISSIONS.CONTACTS_VIEW,
     PERMISSIONS.CONTACTS_CREATE,
     PERMISSIONS.CONTACTS_EDIT,
@@ -83,6 +114,37 @@ export const ROLE_PERMISSIONS = {
     PERMISSIONS.SEGMENTS_EDIT,
     PERMISSIONS.SEGMENTS_DELETE,
 
+    PERMISSIONS.DEALS_VIEW,
+    PERMISSIONS.DEALS_CREATE,
+    PERMISSIONS.DEALS_EDIT,
+    PERMISSIONS.DEALS_DELETE,
+    PERMISSIONS.DEALS_EXPORT,
+
+    // Campaigns - Full access
+    PERMISSIONS.CAMPAIGNS_VIEW,
+    PERMISSIONS.CAMPAIGNS_CREATE,
+    PERMISSIONS.CAMPAIGNS_EDIT,
+    PERMISSIONS.CAMPAIGNS_DELETE,
+    PERMISSIONS.CAMPAIGNS_SEND,
+
+    // Conversations - Full access
+    PERMISSIONS.CONVERSATIONS_VIEW,
+    PERMISSIONS.CONVERSATIONS_REPLY,
+    PERMISSIONS.CONVERSATIONS_ASSIGN,
+    PERMISSIONS.CONVERSATIONS_MANAGE,
+
+    // Tickets - Full access
+    PERMISSIONS.TICKETS_VIEW,
+    PERMISSIONS.TICKETS_CREATE,
+    PERMISSIONS.TICKETS_EDIT,
+    PERMISSIONS.TICKETS_DELETE,
+    PERMISSIONS.TICKETS_ASSIGN,
+
+    // Analytics - Full access
+    PERMISSIONS.ANALYTICS_VIEW,
+    PERMISSIONS.ANALYTICS_EXPORT,
+
+    // Settings - Full access
     PERMISSIONS.TAGS_VIEW,
     PERMISSIONS.TAGS_CREATE,
     PERMISSIONS.TAGS_EDIT,
@@ -98,12 +160,14 @@ export const ROLE_PERMISSIONS = {
     PERMISSIONS.LEAD_SOURCES_EDIT,
     PERMISSIONS.LEAD_SOURCES_DELETE,
 
+    // Team - Full access
     PERMISSIONS.USERS_VIEW,
     PERMISSIONS.USERS_INVITE,
     PERMISSIONS.USERS_EDIT,
     PERMISSIONS.USERS_DELETE,
     PERMISSIONS.PERMISSIONS_MANAGE,
 
+    // Organization - Full access
     PERMISSIONS.ORGANIZATION_VIEW,
     PERMISSIONS.ORGANIZATION_EDIT,
     PERMISSIONS.ORGANIZATION_DELETE,
@@ -127,6 +191,35 @@ export const ROLE_PERMISSIONS = {
     PERMISSIONS.SEGMENTS_CREATE,
     PERMISSIONS.SEGMENTS_EDIT,
     PERMISSIONS.SEGMENTS_DELETE,
+
+    PERMISSIONS.DEALS_VIEW,
+    PERMISSIONS.DEALS_CREATE,
+    PERMISSIONS.DEALS_EDIT,
+    PERMISSIONS.DEALS_DELETE,
+    PERMISSIONS.DEALS_EXPORT,
+
+    // Campaigns - Full access
+    PERMISSIONS.CAMPAIGNS_VIEW,
+    PERMISSIONS.CAMPAIGNS_CREATE,
+    PERMISSIONS.CAMPAIGNS_EDIT,
+    PERMISSIONS.CAMPAIGNS_DELETE,
+    PERMISSIONS.CAMPAIGNS_SEND,
+
+    // Conversations - Full access
+    PERMISSIONS.CONVERSATIONS_VIEW,
+    PERMISSIONS.CONVERSATIONS_REPLY,
+    PERMISSIONS.CONVERSATIONS_ASSIGN,
+    PERMISSIONS.CONVERSATIONS_MANAGE,
+
+    // Tickets - Full access
+    PERMISSIONS.TICKETS_VIEW,
+    PERMISSIONS.TICKETS_CREATE,
+    PERMISSIONS.TICKETS_EDIT,
+    PERMISSIONS.TICKETS_ASSIGN,
+
+    // Analytics - View and export
+    PERMISSIONS.ANALYTICS_VIEW,
+    PERMISSIONS.ANALYTICS_EXPORT,
 
     // Settings - View only (cannot create/edit/delete)
     PERMISSIONS.TAGS_VIEW,
@@ -153,6 +246,19 @@ export const ROLE_PERMISSIONS = {
 
     PERMISSIONS.SEGMENTS_VIEW,
 
+    PERMISSIONS.DEALS_VIEW,
+    PERMISSIONS.DEALS_CREATE,
+    PERMISSIONS.DEALS_EDIT,
+
+    // Conversations - View and reply only
+    PERMISSIONS.CONVERSATIONS_VIEW,
+    PERMISSIONS.CONVERSATIONS_REPLY,
+
+    // Tickets - View, create, edit
+    PERMISSIONS.TICKETS_VIEW,
+    PERMISSIONS.TICKETS_CREATE,
+    PERMISSIONS.TICKETS_EDIT,
+
     // Settings - View only
     PERMISSIONS.TAGS_VIEW,
     PERMISSIONS.STATUSES_VIEW,
@@ -170,6 +276,9 @@ export const ROLE_PERMISSIONS = {
     PERMISSIONS.CONTACTS_VIEW,
     PERMISSIONS.COMPANIES_VIEW,
     PERMISSIONS.SEGMENTS_VIEW,
+    PERMISSIONS.DEALS_VIEW,
+    PERMISSIONS.CONVERSATIONS_VIEW,
+    PERMISSIONS.TICKETS_VIEW,
     PERMISSIONS.TAGS_VIEW,
     PERMISSIONS.STATUSES_VIEW,
     PERMISSIONS.LEAD_SOURCES_VIEW,
@@ -202,6 +311,52 @@ export const PERMISSION_GROUPS = {
       { key: PERMISSIONS.SEGMENTS_CREATE, label: 'Create Segments' },
       { key: PERMISSIONS.SEGMENTS_EDIT, label: 'Edit Segments' },
       { key: PERMISSIONS.SEGMENTS_DELETE, label: 'Delete Segments' },
+
+      { key: PERMISSIONS.DEALS_VIEW, label: 'View Deals' },
+      { key: PERMISSIONS.DEALS_CREATE, label: 'Create Deals' },
+      { key: PERMISSIONS.DEALS_EDIT, label: 'Edit Deals' },
+      { key: PERMISSIONS.DEALS_DELETE, label: 'Delete Deals' },
+      { key: PERMISSIONS.DEALS_EXPORT, label: 'Export Deals' },
+    ],
+  },
+
+  campaigns: {
+    label: 'Campaigns',
+    permissions: [
+      { key: PERMISSIONS.CAMPAIGNS_VIEW, label: 'View Campaigns' },
+      { key: PERMISSIONS.CAMPAIGNS_CREATE, label: 'Create Campaigns' },
+      { key: PERMISSIONS.CAMPAIGNS_EDIT, label: 'Edit Campaigns' },
+      { key: PERMISSIONS.CAMPAIGNS_DELETE, label: 'Delete Campaigns' },
+      { key: PERMISSIONS.CAMPAIGNS_SEND, label: 'Send Campaigns' },
+    ],
+  },
+
+  conversations: {
+    label: 'Conversations',
+    permissions: [
+      { key: PERMISSIONS.CONVERSATIONS_VIEW, label: 'View Conversations' },
+      { key: PERMISSIONS.CONVERSATIONS_REPLY, label: 'Reply to Conversations' },
+      { key: PERMISSIONS.CONVERSATIONS_ASSIGN, label: 'Assign Conversations' },
+      { key: PERMISSIONS.CONVERSATIONS_MANAGE, label: 'Manage Conversation Settings' },
+    ],
+  },
+
+  tickets: {
+    label: 'Tickets',
+    permissions: [
+      { key: PERMISSIONS.TICKETS_VIEW, label: 'View Tickets' },
+      { key: PERMISSIONS.TICKETS_CREATE, label: 'Create Tickets' },
+      { key: PERMISSIONS.TICKETS_EDIT, label: 'Edit Tickets' },
+      { key: PERMISSIONS.TICKETS_DELETE, label: 'Delete Tickets' },
+      { key: PERMISSIONS.TICKETS_ASSIGN, label: 'Assign Tickets' },
+    ],
+  },
+
+  analytics: {
+    label: 'Analytics',
+    permissions: [
+      { key: PERMISSIONS.ANALYTICS_VIEW, label: 'View Analytics' },
+      { key: PERMISSIONS.ANALYTICS_EXPORT, label: 'Export Analytics' },
     ],
   },
 

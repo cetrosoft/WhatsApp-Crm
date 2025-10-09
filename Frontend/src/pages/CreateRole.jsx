@@ -342,8 +342,8 @@ const CreateRole = () => {
             <PermissionMatrix
               moduleKey={selectedModule}
               availablePermissions={availablePermissions}
-              roleDefaults={[]}
-              grants={selectedPermissions}
+              roleDefaults={selectedPermissions}
+              grants={[]}
               revokes={[]}
               onToggle={handleTogglePermission}
               disabled={formData.is_system}

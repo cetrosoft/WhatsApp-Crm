@@ -241,7 +241,7 @@ router.get('/:id', async (req, res) => {
  * - notes: string (optional)
  * - assigned_to: uuid (optional)
  */
-router.post('/', async (req, res) => {
+router.post('/', requirePermission(PERMISSIONS.CONTACTS_CREATE), async (req, res) => {
   try {
     const { organizationId, userId } = req.user;
     const {
@@ -396,7 +396,7 @@ router.post('/', async (req, res) => {
  * PUT /api/crm/contacts/:id
  * Update contact
  */
-router.put('/:id', async (req, res) => {
+router.put('/:id', requirePermission(PERMISSIONS.CONTACTS_EDIT), async (req, res) => {
   try {
     const { organizationId } = req.user;
     const { id } = req.params;
@@ -620,7 +620,7 @@ router.delete('/:id', requirePermission(PERMISSIONS.CONTACTS_DELETE), async (req
  * - action: 'add' | 'remove'
  * - tags: array of tag strings
  */
-router.patch('/:id/tags', async (req, res) => {
+router.patch('/:id/tags', requirePermission(PERMISSIONS.CONTACTS_EDIT), async (req, res) => {
   try {
     const { organizationId } = req.user;
     const { id } = req.params;
@@ -691,7 +691,7 @@ router.patch('/:id/tags', async (req, res) => {
  * Body:
  * - assigned_to: user UUID
  */
-router.patch('/:id/assign', async (req, res) => {
+router.patch('/:id/assign', requirePermission(PERMISSIONS.CONTACTS_EDIT), async (req, res) => {
   try {
     const { organizationId } = req.user;
     const { id } = req.params;
@@ -825,7 +825,7 @@ router.get('/:id/deals', async (req, res) => {
  * POST /api/crm/contacts/:id/avatar
  * Upload contact avatar image
  */
-router.post('/:id/avatar', async (req, res) => {
+router.post('/:id/avatar', requirePermission(PERMISSIONS.CONTACTS_EDIT), async (req, res) => {
   try {
     const { organizationId } = req.user;
     const { id } = req.params;

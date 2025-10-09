@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { userAPI } from '../services/api';
 import toast from 'react-hot-toast';
 
@@ -11,6 +12,7 @@ import toast from 'react-hot-toast';
  * Hook to manage users in the organization
  */
 export const useUsers = () => {
+  const { t } = useTranslation('common');
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -24,53 +26,53 @@ export const useUsers = () => {
       setUsers(data.users || []);
     } catch (err) {
       console.error('Error fetching users:', err);
-      setError(err.message || 'Failed to fetch users');
-      toast.error('Failed to load team members');
+      setError(err.message || t('failedToLoad', { resource: t('users') }));
+      toast.error(t('failedToLoadTeamMembers'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   // Invite user
   const inviteUser = useCallback(async (email, role, roleId = null) => {
     try {
       await userAPI.inviteUser(email, role, roleId);
-      toast.success('Invitation sent successfully');
+      toast.success(t('invitationSent'));
       // Don't refetch - invited user not in list yet
     } catch (err) {
       console.error('Error inviting user:', err);
-      toast.error(err.message || 'Failed to send invitation');
+      toast.error(err.message || t('failedToSave', { resource: t('invitation') }));
       throw err;
     }
-  }, []);
+  }, [t]);
 
   // Update user
   const updateUser = useCallback(async (userId, updates) => {
     try {
       await userAPI.updateUser(userId, updates);
-      toast.success('User updated successfully');
+      toast.success(t('successUpdated', { resource: t('user') }));
       // Refresh list
       await fetchUsers();
     } catch (err) {
       console.error('Error updating user:', err);
-      toast.error(err.message || 'Failed to update user');
+      toast.error(err.message || t('failedToUpdate', { resource: t('user') }));
       throw err;
     }
-  }, [fetchUsers]);
+  }, [fetchUsers, t]);
 
   // Delete user
   const deleteUser = useCallback(async (userId) => {
     try {
       await userAPI.deleteUser(userId);
-      toast.success('User deleted successfully');
+      toast.success(t('successDeleted', { resource: t('user') }));
       // Refresh list
       await fetchUsers();
     } catch (err) {
       console.error('Error deleting user:', err);
-      toast.error(err.message || 'Failed to delete user');
+      toast.error(err.message || t('failedToDelete', { resource: t('user') }));
       throw err;
     }
-  }, [fetchUsers]);
+  }, [fetchUsers, t]);
 
   // Change user role
   const changeRole = useCallback(async (userId, newRole, roleId = null) => {

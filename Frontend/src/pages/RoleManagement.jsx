@@ -7,8 +7,9 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { roleAPI } from '../services/api';
-import { Shield, Plus, Trash2, Users, Lock, Edit } from 'lucide-react';
+import { Shield, Plus, Trash2, Users, Lock, Edit, Edit2, Copy, Eye } from 'lucide-react';
 import toast from 'react-hot-toast';
+import RoleQuickEditModal from '../components/RoleQuickEditModal';
 
 const RoleManagement = () => {
   const { t } = useTranslation(['common', 'settings']);
@@ -17,6 +18,9 @@ const RoleManagement = () => {
   const [loading, setLoading] = useState(true);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [selectedRole, setSelectedRole] = useState(null);
+  const [duplicating, setDuplicating] = useState(null);
 
   useEffect(() => {
     fetchRoles();
@@ -46,6 +50,39 @@ const RoleManagement = () => {
       toast.error(error.message || t('common:error'));
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const handleQuickEdit = (role) => {
+    setSelectedRole(role);
+    setEditModalOpen(true);
+  };
+
+  const handleDuplicate = async (role) => {
+    setDuplicating(role.id);
+    try {
+      // Create copy with modified name
+      const duplicatedRole = {
+        name: `${role.name} (Copy)`,
+        slug: `${role.slug}_copy_${Date.now()}`,
+        description: role.description || '',
+        permissions: role.permissions || [],
+      };
+
+      const response = await roleAPI.createRole(duplicatedRole);
+      toast.success(t('settings:roleDuplicated'));
+      fetchRoles();
+
+      // Open quick edit modal with the new role
+      if (response.role) {
+        setSelectedRole(response.role);
+        setEditModalOpen(true);
+      }
+    } catch (error) {
+      console.error('Duplicate role error:', error);
+      toast.error(error.message || t('common:error'));
+    } finally {
+      setDuplicating(null);
     }
   };
 
@@ -149,20 +186,50 @@ const RoleManagement = () => {
 
               {/* Actions */}
               <div className="flex items-center gap-2 pt-4 border-t border-gray-100">
+                {/* View Details */}
                 <button
                   onClick={() => navigate(`/team/roles/edit/${role.id}`)}
-                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
+                  className="flex-1 flex items-center justify-center gap-1.5 px-2 py-2 text-xs border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
+                  title={t('common:viewDetails')}
                 >
-                  <Edit className="w-4 h-4" />
-                  {t('common:view')}
+                  <Eye className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">{t('common:view')}</span>
                 </button>
+
+                {/* Quick Edit - Custom roles only */}
+                {!role.is_system && (
+                  <button
+                    onClick={() => handleQuickEdit(role)}
+                    className="flex-1 flex items-center justify-center gap-1.5 px-2 py-2 text-xs border border-indigo-300 text-indigo-600 rounded-lg hover:bg-indigo-50 transition"
+                    title={t('common:edit')}
+                  >
+                    <Edit2 className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">{t('common:edit')}</span>
+                  </button>
+                )}
+
+                {/* Duplicate - All roles */}
+                <button
+                  onClick={() => handleDuplicate(role)}
+                  disabled={duplicating === role.id}
+                  className="px-2 py-2 text-xs border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 transition disabled:opacity-50"
+                  title={t('settings:duplicateRole')}
+                >
+                  {duplicating === role.id ? (
+                    <div className="w-3.5 h-3.5 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin"></div>
+                  ) : (
+                    <Copy className="w-3.5 h-3.5" />
+                  )}
+                </button>
+
+                {/* Delete - Custom roles only */}
                 {!role.is_system && (
                   <button
                     onClick={() => setDeleteConfirm(role)}
-                    className="px-3 py-2 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition"
+                    className="px-2 py-2 text-xs border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition"
                     title={t('common:delete')}
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 )}
               </div>
@@ -243,6 +310,19 @@ const RoleManagement = () => {
             </div>
           </div>
         )}
+
+        {/* Quick Edit Modal */}
+        <RoleQuickEditModal
+          role={selectedRole}
+          isOpen={editModalOpen}
+          onClose={() => {
+            setEditModalOpen(false);
+            setSelectedRole(null);
+          }}
+          onSuccess={() => {
+            fetchRoles();
+          }}
+        />
       </div>
     </div>
   );

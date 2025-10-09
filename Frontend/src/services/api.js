@@ -833,6 +833,195 @@ export const companyAPI = {
   },
 };
 
+/**
+ * Deal API
+ * Endpoints for managing sales deals
+ */
+export const dealAPI = {
+  /**
+   * Get all deals with optional filters
+   */
+  getDeals: async (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return await apiCall(`/api/crm/deals${queryString ? `?${queryString}` : ''}`);
+  },
+
+  /**
+   * Get deal statistics
+   */
+  getDealStats: async () => {
+    return await apiCall('/api/crm/deals/stats');
+  },
+
+  /**
+   * Get single deal by ID
+   */
+  getDeal: async (id) => {
+    return await apiCall(`/api/crm/deals/${id}`);
+  },
+
+  /**
+   * Create new deal
+   */
+  createDeal: async (data) => {
+    return await apiCall('/api/crm/deals', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  /**
+   * Update deal
+   */
+  updateDeal: async (id, data) => {
+    return await apiCall(`/api/crm/deals/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  /**
+   * Delete deal
+   */
+  deleteDeal: async (id) => {
+    return await apiCall(`/api/crm/deals/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  /**
+   * Move deal to different stage
+   */
+  moveDealToStage: async (id, stageId) => {
+    return await apiCall(`/api/crm/deals/${id}/stage`, {
+      method: 'PATCH',
+      body: JSON.stringify({ stage_id: stageId }),
+    });
+  },
+
+  /**
+   * Assign deal to user
+   */
+  assignDeal: async (id, userId) => {
+    return await apiCall(`/api/crm/deals/${id}/assign`, {
+      method: 'PATCH',
+      body: JSON.stringify({ assigned_to: userId }),
+    });
+  },
+
+  /**
+   * Get deal activities/history
+   */
+  getDealActivities: async (id) => {
+    return await apiCall(`/api/crm/deals/${id}/activities`);
+  },
+
+  /**
+   * Add note to deal
+   */
+  addNote: async (id, note) => {
+    return await apiCall(`/api/crm/deals/${id}/note`, {
+      method: 'POST',
+      body: JSON.stringify({ note }),
+    });
+  },
+};
+
+/**
+ * Pipeline API
+ * Endpoints for managing sales pipelines
+ */
+export const pipelineAPI = {
+  /**
+   * Get all pipelines
+   */
+  getPipelines: async () => {
+    return await apiCall('/api/crm/pipelines');
+  },
+
+  /**
+   * Get single pipeline by ID
+   */
+  getPipeline: async (id) => {
+    return await apiCall(`/api/crm/pipelines/${id}`);
+  },
+
+  /**
+   * Create new pipeline
+   */
+  createPipeline: async (data) => {
+    return await apiCall('/api/crm/pipelines', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  /**
+   * Update pipeline
+   */
+  updatePipeline: async (id, data) => {
+    return await apiCall(`/api/crm/pipelines/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  /**
+   * Delete pipeline
+   */
+  deletePipeline: async (id) => {
+    return await apiCall(`/api/crm/pipelines/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  /**
+   * Get all deals for a pipeline (Kanban data)
+   */
+  getPipelineDeals: async (id) => {
+    return await apiCall(`/api/crm/pipelines/${id}/deals`);
+  },
+
+  /**
+   * Create new stage in pipeline
+   */
+  createStage: async (pipelineId, data) => {
+    return await apiCall(`/api/crm/pipelines/${pipelineId}/stages`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  /**
+   * Update stage
+   */
+  updateStage: async (pipelineId, stageId, data) => {
+    return await apiCall(`/api/crm/pipelines/${pipelineId}/stages/${stageId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  /**
+   * Delete stage
+   */
+  deleteStage: async (pipelineId, stageId) => {
+    return await apiCall(`/api/crm/pipelines/${pipelineId}/stages/${stageId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  /**
+   * Reorder stages
+   */
+  reorderStages: async (pipelineId, stages) => {
+    return await apiCall(`/api/crm/pipelines/${pipelineId}/stages/reorder`, {
+      method: 'PATCH',
+      body: JSON.stringify({ stages }),
+    });
+  },
+};
+
 export const tokenUtils = {
   getToken,
   setToken,
@@ -852,6 +1041,8 @@ export default {
   leadSourceAPI,
   segmentAPI,
   companyAPI,
+  dealAPI,
+  pipelineAPI,
   permissionAPI,
   tokenUtils,
 };

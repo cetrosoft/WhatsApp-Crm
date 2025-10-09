@@ -9,6 +9,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 // Components
 import DashboardLayout from "./components/layout/DashboardLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
+import PermissionRoute from "./components/PermissionRoute";
 
 // Pages - Auth
 import Login from "./pages/Login";
@@ -26,6 +27,8 @@ import Contacts from "./pages/Contacts";
 import CRMSettings from "./pages/CRMSettings";
 import Segments from "./pages/Segments";
 import Companies from "./pages/Companies";
+import Deals from "./pages/Deals";
+import Pipelines from "./pages/Pipelines";
 
 // Pages - Team
 import TeamMembers from "./pages/Team/TeamMembers";
@@ -34,6 +37,9 @@ import CreateRole from "./pages/CreateRole";
 
 // Pages - User Profile
 import UserProfile from "./pages/UserProfile";
+
+// Debug Pages
+import DebugPermissions from "./pages/DebugPermissions";
 
 import menuConfig from "./menuConfig";
 
@@ -51,29 +57,111 @@ const MainLayout = () => {
   return (
     <DashboardLayout>
       <Routes>
-        {/* Dashboard */}
+        {/* Dashboard - no permission required, all users can access */}
         <Route path="/dashboard" element={<Dashboard />} />
 
-        {/* CRM */}
-        <Route path="/crm/contacts" element={<Contacts />} />
-        <Route path="/crm/companies" element={<Companies />} />
-        <Route path="/crm/segmentation" element={<Segments />} />
-        <Route path="/crm/settings" element={<CRMSettings />} />
+        {/* CRM - Permission Protected */}
+        <Route
+          path="/crm/contacts"
+          element={
+            <PermissionRoute permission="contacts.view">
+              <Contacts />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="/crm/companies"
+          element={
+            <PermissionRoute permission="companies.view">
+              <Companies />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="/crm/segmentation"
+          element={
+            <PermissionRoute permission="segments.view">
+              <Segments />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="/crm/deals"
+          element={
+            <PermissionRoute permission="deals.view">
+              <Deals />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="/crm/pipelines"
+          element={
+            <PermissionRoute permission="pipelines.view">
+              <Pipelines />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="/crm/settings"
+          element={
+            <PermissionRoute permission="statuses.view">
+              <CRMSettings />
+            </PermissionRoute>
+          }
+        />
 
-        {/* Team */}
-        <Route path="/team/members" element={<TeamMembers />} />
-        <Route path="/team/roles" element={<RolesPermissions />} />
-        <Route path="/team/roles/create" element={<CreateRole />} />
-        <Route path="/team/roles/edit/:roleId" element={<CreateRole />} />
+        {/* Team - Permission Protected */}
+        <Route
+          path="/team/members"
+          element={
+            <PermissionRoute permission="users.view">
+              <TeamMembers />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="/team/roles"
+          element={
+            <PermissionRoute permission="permissions.manage">
+              <RolesPermissions />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="/team/roles/create"
+          element={
+            <PermissionRoute permission="permissions.manage">
+              <CreateRole />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="/team/roles/edit/:roleId"
+          element={
+            <PermissionRoute permission="permissions.manage">
+              <CreateRole />
+            </PermissionRoute>
+          }
+        />
 
-        {/* User Profile */}
+        {/* User Profile - no permission required */}
         <Route path="/profile" element={<UserProfile />} />
 
         {/* Old routes - will be migrated to new structure */}
         <Route path="/campaigns" element={<Campaigns />} />
         <Route path="/inbox" element={<Inbox />} />
         <Route path="/settings" element={<Settings />} />
-        <Route path="/account-settings" element={<AccountSettings />} />
+        <Route
+          path="/account-settings"
+          element={
+            <PermissionRoute permission="organization.edit">
+              <AccountSettings />
+            </PermissionRoute>
+          }
+        />
+
+        {/* Debug Page - Remove in production */}
+        <Route path="/debug-permissions" element={<DebugPermissions />} />
 
         {/* Default redirect */}
         <Route path="/" element={<Navigate to="/dashboard" replace />} />

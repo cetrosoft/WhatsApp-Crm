@@ -108,5 +108,8 @@
   "createFirstRole": "أنشئ أول دور مخصص للبدء",
   "createRoleDescription": "حدد دوراً جديداً مع صلاحيات مخصصة لفريقك",
   "cannotEditSystemRole": "الأدوار النظامية لا يمكن تعديلها",
-  "customRole": "دور مخصص"
+  "customRole": "دور مخصص",
+  "duplicateRole": "نسخ الدور",
+  "roleDuplicated": "تم نسخ الدور بنجاح",
+  "systemRoleReadOnly": "الأدوار النظامية للقراءة فقط. يمكنك عرض الصلاحيات ولكن لا يمكنك تعديلها."
 }

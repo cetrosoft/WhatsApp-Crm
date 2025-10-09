@@ -10,7 +10,7 @@ import toast from 'react-hot-toast';
 import LanguageSwitcher from '../LanguageSwitcher';
 
 const PreferencesTab = () => {
-  const { t, i18n } = useTranslation('settings');
+  const { t, i18n } = useTranslation(['settings', 'common']);
   const [preferences, setPreferences] = useState({
     timezone: 'UTC',
     emailNotifications: true,
@@ -25,7 +25,7 @@ const PreferencesTab = () => {
       // TODO: API call to save preferences
       toast.success(t('settingsSaved'));
     } catch (error) {
-      toast.error('Failed to save preferences');
+      toast.error(t('failedToSave', { ns: 'common', resource: t('preferences') }));
     } finally {
       setIsSaving(false);
     }

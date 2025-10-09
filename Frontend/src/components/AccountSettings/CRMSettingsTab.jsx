@@ -9,6 +9,7 @@ import { tagAPI } from '../../services/api';
 import { Plus, Edit2, Trash2, Tag as TagIcon } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
+import { hasPermission } from '../../utils/permissionUtils';
 
 const CRMSettingsTab = () => {
   const { t, i18n } = useTranslation(['common', 'settings']);
@@ -51,7 +52,7 @@ const CRMSettingsTab = () => {
       setTags(response.tags || []);
     } catch (error) {
       console.error('Error loading tags:', error);
-      toast.error('Failed to load tags');
+      toast.error(t('failedToLoad', { resource: t('tags') }));
     } finally {
       setLoading(false);
     }
@@ -59,8 +60,8 @@ const CRMSettingsTab = () => {
 
   const handleAddTag = () => {
     // Check permission before opening modal
-    if (user?.role !== 'admin') {
-      toast.error(t('cannotCreateTags'), { duration: 5000 });
+    if (!hasPermission(user, 'tags.create')) {
+      toast.error(t('common:permissionDenied'), { duration: 5000 });
       return;
     }
 
@@ -71,8 +72,8 @@ const CRMSettingsTab = () => {
 
   const handleEditTag = (tag) => {
     // Check permission before opening modal
-    if (user?.role !== 'admin') {
-      toast.error(t('cannotEditTags'), { duration: 5000 });
+    if (!hasPermission(user, 'tags.edit')) {
+      toast.error(t('common:permissionDenied'), { duration: 5000 });
       return;
     }
 
@@ -89,7 +90,7 @@ const CRMSettingsTab = () => {
     e.preventDefault();
 
     if (!tagForm.name_en.trim()) {
-      toast.error('Tag name (English) is required');
+      toast.error(t('nameEnglishRequired', { resource: t('tag') }));
       return;
     }
 
@@ -97,11 +98,11 @@ const CRMSettingsTab = () => {
       if (editingTag) {
         // Update existing tag
         await tagAPI.updateTag(editingTag.id, tagForm);
-        toast.success('Tag updated successfully');
+        toast.success(t('successUpdated', { resource: t('tag') }));
       } else {
         // Create new tag
         await tagAPI.createTag(tagForm);
-        toast.success('Tag created successfully');
+        toast.success(t('successCreated', { resource: t('tag') }));
       }
 
       setShowTagModal(false);
@@ -110,19 +111,19 @@ const CRMSettingsTab = () => {
       console.error('Error saving tag:', error);
 
       if (error.response?.status === 403) {
-        toast.error('You don\'t have permission to manage tags. Only administrators can create, edit, or delete tags.', {
+        toast.error(t('noPermissionManage', { resource: t('tags') }), {
           duration: 5000
         });
       } else {
-        toast.error(error.response?.data?.message || 'Failed to save tag');
+        toast.error(error.response?.data?.message || t('failedToSave', { resource: t('tag') }));
       }
     }
   };
 
   const handleDeleteTag = async (tag) => {
     // Check permission before showing confirm dialog
-    if (user?.role !== 'admin') {
-      toast.error(t('cannotDeleteTags'), { duration: 5000 });
+    if (!hasPermission(user, 'tags.delete')) {
+      toast.error(t('common:permissionDenied'), { duration: 5000 });
       return;
     }
 
@@ -132,7 +133,7 @@ const CRMSettingsTab = () => {
 
     try {
       await tagAPI.deleteTag(tag.id);
-      toast.success('Tag deleted successfully');
+      toast.success(t('successDeleted', { resource: t('tag') }));
       loadTags();
     } catch (error) {
       console.error('Error deleting tag:', error);
@@ -142,7 +143,7 @@ const CRMSettingsTab = () => {
           duration: 5000
         });
       } else {
-        toast.error('Failed to delete tag');
+        toast.error(t('failedToDelete', { resource: t('tag') }));
       }
     }
   };

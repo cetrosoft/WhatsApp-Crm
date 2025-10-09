@@ -9,6 +9,7 @@ import { leadSourceAPI } from '../../services/api';
 import { Plus, Edit2, Trash2, Target } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
+import { hasPermission } from '../../utils/permissionUtils';
 
 const LeadSourcesTab = () => {
   const { t, i18n } = useTranslation(['common', 'settings']);
@@ -65,7 +66,7 @@ const LeadSourcesTab = () => {
       setLeadSources(response.leadSources || []);
     } catch (error) {
       console.error('Error loading lead sources:', error);
-      toast.error('Failed to load lead sources');
+      toast.error(t('failedToLoad', { resource: t('leadSources') }));
     } finally {
       setLoading(false);
     }
@@ -73,8 +74,8 @@ const LeadSourcesTab = () => {
 
   const handleAddSource = () => {
     // Check permission before opening modal
-    if (user?.role !== 'admin') {
-      toast.error(t('cannotCreateLeadSources'), { duration: 5000 });
+    if (!hasPermission(user, 'leadSources.create')) {
+      toast.error(t('common:permissionDenied'), { duration: 5000 });
       return;
     }
 
@@ -93,8 +94,8 @@ const LeadSourcesTab = () => {
 
   const handleEditSource = (source) => {
     // Check permission before opening modal
-    if (user?.role !== 'admin') {
-      toast.error(t('cannotEditLeadSources'), { duration: 5000 });
+    if (!hasPermission(user, 'leadSources.edit')) {
+      toast.error(t('common:permissionDenied'), { duration: 5000 });
       return;
     }
 
@@ -115,12 +116,12 @@ const LeadSourcesTab = () => {
     e.preventDefault();
 
     if (!sourceForm.name_en.trim()) {
-      toast.error('Lead source name (English) is required');
+      toast.error(t('nameEnglishRequired', { resource: t('leadSource') }));
       return;
     }
 
     if (!editingSource && !sourceForm.slug.trim()) {
-      toast.error('Lead source slug is required');
+      toast.error(t('slugRequired', { resource: t('leadSource') }));
       return;
     }
 
@@ -128,11 +129,11 @@ const LeadSourcesTab = () => {
       if (editingSource) {
         // Update existing lead source
         await leadSourceAPI.updateLeadSource(editingSource.id, sourceForm);
-        toast.success('Lead source updated successfully');
+        toast.success(t('successUpdated', { resource: t('leadSource') }));
       } else {
         // Create new lead source
         await leadSourceAPI.createLeadSource(sourceForm);
-        toast.success('Lead source created successfully');
+        toast.success(t('successCreated', { resource: t('leadSource') }));
       }
 
       setShowModal(false);
@@ -141,19 +142,19 @@ const LeadSourcesTab = () => {
       console.error('Error saving lead source:', error);
 
       if (error.response?.status === 403) {
-        toast.error('You don\'t have permission to manage lead sources. Only administrators can modify lead sources.', {
+        toast.error(t('noPermissionManage', { resource: t('leadSources') }), {
           duration: 5000
         });
       } else {
-        toast.error(error.response?.data?.message || 'Failed to save lead source');
+        toast.error(error.response?.data?.message || t('failedToSave', { resource: t('leadSource') }));
       }
     }
   };
 
   const handleDeleteSource = async (source) => {
     // Check permission before showing confirm dialog
-    if (user?.role !== 'admin') {
-      toast.error(t('cannotDeleteLeadSources'), { duration: 5000 });
+    if (!hasPermission(user, 'leadSources.delete')) {
+      toast.error(t('common:permissionDenied'), { duration: 5000 });
       return;
     }
 
@@ -163,7 +164,7 @@ const LeadSourcesTab = () => {
 
     try {
       await leadSourceAPI.deleteLeadSource(source.id);
-      toast.success('Lead source deleted successfully');
+      toast.success(t('successDeleted', { resource: t('leadSource') }));
       loadLeadSources();
     } catch (error) {
       console.error('Error deleting lead source:', error);
@@ -173,7 +174,7 @@ const LeadSourcesTab = () => {
           duration: 5000
         });
       } else {
-        toast.error('Failed to delete lead source');
+        toast.error(t('failedToDelete', { resource: t('leadSource') }));
       }
     }
   };

@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { permissionAPI } from '../services/api';
 import { hasPermission as checkPermission } from '../utils/permissionUtils';
 import toast from 'react-hot-toast';
@@ -13,6 +14,7 @@ import toast from 'react-hot-toast';
  * @param {string} userId - User ID to fetch permissions for
  */
 export const usePermissions = (userId) => {
+  const { t } = useTranslation('common');
   const [permissions, setPermissions] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -31,12 +33,12 @@ export const usePermissions = (userId) => {
       setPermissions(data);
     } catch (err) {
       console.error('Error fetching permissions:', err);
-      setError(err.message || 'Failed to fetch permissions');
-      toast.error('Failed to load permissions');
+      setError(err.message || t('failedToLoad', { resource: t('permissions') }));
+      toast.error(t('failedToLoadPermissions'));
     } finally {
       setLoading(false);
     }
-  }, [userId]);
+  }, [userId, t]);
 
   // Update user permissions
   const updatePermissions = useCallback(async (grant = [], revoke = []) => {
@@ -45,14 +47,14 @@ export const usePermissions = (userId) => {
     try {
       const data = await permissionAPI.updateUserPermissions(userId, grant, revoke);
       setPermissions(data.user);
-      toast.success('Permissions updated successfully');
+      toast.success(t('permissionsUpdated'));
       return data;
     } catch (err) {
       console.error('Error updating permissions:', err);
-      toast.error(err.message || 'Failed to update permissions');
+      toast.error(err.message || t('failedToUpdate', { resource: t('permissions') }));
       throw err;
     }
-  }, [userId]);
+  }, [userId, t]);
 
   // Check if user has a specific permission
   const hasPermission = useCallback((permission) => {
