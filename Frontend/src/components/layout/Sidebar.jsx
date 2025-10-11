@@ -2,6 +2,7 @@
  * Sidebar Component - Redesigned
  * Collapsible multi-level menu with full RTL/LTR support
  * Icons, nested menus, active state highlighting
+ * NOW WITH DYNAMIC MENU FROM DATABASE
  */
 
 import React, { useState } from 'react';
@@ -11,12 +12,25 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { ChevronDown, ChevronRight, ChevronLeft } from 'lucide-react';
 import * as Icons from 'lucide-react';
 import menuConfig from '../../menuConfig';
+import useMenu from '../../hooks/useMenu';
+import i18n from '../../i18n';
 
 const Sidebar = ({ isOpen, mobileOpen, closeMobile }) => {
   const location = useLocation();
   const { t } = useTranslation('navigation');
   const { isRTL } = useLanguage();
   const [expandedMenus, setExpandedMenus] = useState({});
+
+  // Get current language for dynamic menu
+  const currentLang = i18n.language || 'en';
+
+  // Fetch dynamic menu from database (filtered by package + permissions)
+  const { menu: dynamicMenu, loading: menuLoading, error: menuError } = useMenu(currentLang);
+
+  // Use dynamic menu if available, fallback to hardcoded menuConfig
+  const menuItems = (menuLoading || menuError || !dynamicMenu || dynamicMenu.length === 0)
+    ? menuConfig
+    : dynamicMenu;
 
   const toggleMenu = (menuId) => {
     setExpandedMenus(prev => ({
@@ -44,7 +58,9 @@ const Sidebar = ({ isOpen, mobileOpen, closeMobile }) => {
 
   const renderMenuItem = (item, level = 0) => {
     const hasChildren = item.children && item.children.length > 0;
-    const isExpanded = expandedMenus[item.id];
+    // Support both database format (key) and hardcoded format (id)
+    const itemId = item.key || item.id;
+    const isExpanded = expandedMenus[itemId];
     const isActive = isPathActive(item.path);
     const hasActiveSubMenu = hasActiveChild(item.children);
 
@@ -53,12 +69,15 @@ const Sidebar = ({ isOpen, mobileOpen, closeMobile }) => {
 
     const paddingClass = level === 0 ? 'ps-4 pe-3' : `ps-${4 + level * 4} pe-3`;
 
+    // Get display name - database menu has pre-translated 'name', fallback to translation
+    const displayName = item.name || t(item.labelKey, { defaultValue: item.label });
+
     if (hasChildren) {
       return (
-        <div key={item.id}>
+        <div key={itemId}>
           {/* Parent Menu Item */}
           <button
-            onClick={() => toggleMenu(item.id)}
+            onClick={() => toggleMenu(itemId)}
             className={`w-full flex items-center justify-between gap-3 py-3 px-4 rounded-lg transition-all duration-200 ${
               shouldHighlight
                 ? 'bg-indigo-50 text-indigo-700 font-semibold'
@@ -74,7 +93,7 @@ const Sidebar = ({ isOpen, mobileOpen, closeMobile }) => {
               {/* Label */}
               {isOpen && (
                 <span className={`text-sm truncate ${isRTL ? 'text-right' : 'text-left'}`}>
-                  {t(item.labelKey, { defaultValue: item.label })}
+                  {displayName}
                 </span>
               )}
             </div>
@@ -104,7 +123,7 @@ const Sidebar = ({ isOpen, mobileOpen, closeMobile }) => {
     // Leaf Menu Item (with link)
     return (
       <Link
-        key={item.id}
+        key={itemId}
         to={item.path}
         onClick={closeMobile}
         className={`flex items-center gap-3 py-3 px-4 rounded-lg transition-all duration-200 ${
@@ -121,7 +140,7 @@ const Sidebar = ({ isOpen, mobileOpen, closeMobile }) => {
         {/* Label */}
         {isOpen && (
           <span className={`text-sm truncate ${isRTL ? 'text-right' : 'text-left'}`}>
-            {t(item.labelKey, { defaultValue: item.label })}
+            {displayName}
           </span>
         )}
       </Link>
@@ -137,7 +156,7 @@ const Sidebar = ({ isOpen, mobileOpen, closeMobile }) => {
         }`}
       >
         <nav className="h-full overflow-y-auto p-3 space-y-1">
-          {menuConfig.map(item => renderMenuItem(item))}
+          {menuItems.map(item => renderMenuItem(item))}
         </nav>
       </aside>
 
@@ -148,7 +167,7 @@ const Sidebar = ({ isOpen, mobileOpen, closeMobile }) => {
         }`}
       >
         <nav className="h-full overflow-y-auto p-3 space-y-1">
-          {menuConfig.map(item => renderMenuItem(item))}
+          {menuItems.map(item => renderMenuItem(item))}
         </nav>
       </aside>
     </>

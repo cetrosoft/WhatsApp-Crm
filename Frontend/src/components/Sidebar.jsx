@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import menuConfig from "../menuConfig";
+import useMenu from "../hooks/useMenu";
 import {
   ChevronLeft,
   ChevronRight,
@@ -43,6 +44,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { useTranslation } from "react-i18next";
+import i18n from "../i18n";
 import { hasPermission } from "../utils/permissionUtils";
 import LanguageSwitcher from "./LanguageSwitcher";
 
@@ -91,6 +93,12 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
   const [expandedItems, setExpandedItems] = useState({});
   const userMenuRef = useRef(null);
 
+  // Get current language for menu API
+  const currentLang = i18n.language || 'en';
+
+  // Fetch dynamic menu from API (filtered by package + permissions)
+  const { menu: dynamicMenu, loading: menuLoading, error: menuError } = useMenu(currentLang);
+
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -112,7 +120,7 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
   const canAccessOrgSettings = hasPermission(user, 'organization.edit');
 
   /**
-   * Filter menu items based on user permissions
+   * Filter menu items based on user permissions (fallback for hardcoded menuConfig)
    */
   const filterMenuByPermissions = (items) => {
     return items.filter(item => {
@@ -135,7 +143,10 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
     });
   };
 
-  const filteredMenu = filterMenuByPermissions(JSON.parse(JSON.stringify(menuConfig)));
+  // Use dynamic menu from API, fallback to hardcoded menuConfig if error or empty
+  const filteredMenu = menuLoading || menuError || !dynamicMenu || dynamicMenu.length === 0
+    ? filterMenuByPermissions(JSON.parse(JSON.stringify(menuConfig)))
+    : dynamicMenu;
 
   // Toggle parent menu item
   const toggleExpanded = (itemId) => {
@@ -157,19 +168,24 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
   // Render menu item (recursive for nested children)
   const renderMenuItem = (item, level = 0) => {
     const hasChildren = item.children && item.children.length > 0;
-    const isExpanded = expandedItems[item.id];
+    // Support both database format (key) and hardcoded format (id)
+    const itemId = item.key || item.id;
+    const isExpanded = expandedItems[itemId];
     const isActive = item.path === location.pathname;
     const hasActiveChild = isChildActive(item.children);
 
     // Get icon component from mapping
     const IconComponent = iconMap[item.icon];
 
+    // Get display name - database menu has pre-translated 'name', fallback to translation
+    const displayName = item.name || t(item.labelKey) || item.label;
+
     // Item with children (parent)
     if (hasChildren) {
       return (
-        <div key={item.id} className={level > 0 ? "ms-4" : ""}>
+        <div key={itemId} className={level > 0 ? "ms-4" : ""}>
           <button
-            onClick={() => toggleExpanded(item.id)}
+            onClick={() => toggleExpanded(itemId)}
             className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all duration-200 ${
               hasActiveChild
                 ? "bg-[#6264a7] text-white font-semibold"
@@ -179,7 +195,7 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
             {IconComponent && <IconComponent size={20} />}
             {isOpen && (
               <>
-                <span className="text-sm flex-1 text-start">{t(item.labelKey) || item.label}</span>
+                <span className="text-sm flex-1 text-start">{displayName}</span>
                 <ChevronDown
                   size={16}
                   className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`}
@@ -201,7 +217,7 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
     // Item with direct path (leaf)
     return (
       <Link
-        key={item.id}
+        key={itemId}
         to={item.path}
         className={`flex items-center gap-3 p-3 rounded-lg transition-all duration-200 ${
           isActive
@@ -210,7 +226,7 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
         } ${level > 0 ? "ms-4" : ""}`}
       >
         {IconComponent && <IconComponent size={20} />}
-        {isOpen && <span className="text-sm">{t(item.labelKey) || item.label}</span>}
+        {isOpen && <span className="text-sm">{displayName}</span>}
       </Link>
     );
   };

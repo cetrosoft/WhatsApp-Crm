@@ -1022,6 +1022,56 @@ export const pipelineAPI = {
   },
 };
 
+/**
+ * Menu API
+ * Endpoints for dynamic menu management
+ */
+export const menuAPI = {
+  /**
+   * Get menu structure for authenticated user
+   * Filters based on package features and user permissions
+   */
+  getMenu: async (lang = 'en') => {
+    return await apiCall(`/api/menu?lang=${lang}`);
+  },
+
+  /**
+   * Get all menu items (Admin only)
+   */
+  getAllMenuItems: async () => {
+    return await apiCall('/api/menu/all');
+  },
+
+  /**
+   * Create new menu item (Admin only)
+   */
+  createMenuItem: async (data) => {
+    return await apiCall('/api/menu', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  /**
+   * Update menu item (Admin only)
+   */
+  updateMenuItem: async (key, data) => {
+    return await apiCall(`/api/menu/${key}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  },
+
+  /**
+   * Delete menu item (Admin only, non-system items only)
+   */
+  deleteMenuItem: async (key) => {
+    return await apiCall(`/api/menu/${key}`, {
+      method: 'DELETE',
+    });
+  },
+};
+
 export const tokenUtils = {
   getToken,
   setToken,
@@ -1044,5 +1094,6 @@ export default {
   dealAPI,
   pipelineAPI,
   permissionAPI,
+  menuAPI,
   tokenUtils,
 };
