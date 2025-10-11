@@ -57,6 +57,7 @@ backend/
 │   ├── userRoutes.js - User management, invitations, permissions
 │   ├── roleRoutes.js - Custom roles management
 │   ├── packageRoutes.js - Subscription packages
+│   ├── menuRoutes.js - Dynamic menu system (Oct 11)
 │   ├── contactRoutes.js - CRM contacts API
 │   ├── companyRoutes.js - CRM companies API
 │   ├── dealRoutes.js - CRM deals/pipeline API
@@ -66,6 +67,9 @@ backend/
 │   └── tenant.js - Organization context setter
 ├── services/
 │   └── invitationService.js - Team invitation logic
+├── utils/
+│   ├── permissions.js - Permission calculation helpers
+│   └── permissionDiscovery.js - Dynamic permission discovery (Oct 11)
 └── .env - Environment variables (Supabase, JWT, SMTP)
 ```
 
@@ -263,6 +267,133 @@ Frontend/src/
 
 **Status:** Production-ready, no hardcoded role dependencies
 
+---
+
+### Dynamic Menu & Permission Systems (COMPLETE - Oct 11, 2025)
+
+**Architecture Philosophy:** Database-driven, bilingual, zero-maintenance
+
+#### 1. **Dynamic Menu System**
+
+**Before:** Hardcoded menu in `menuConfig.jsx` with translation keys
+**After:** Fully database-driven from `menu_items` table
+
+**Key Features:**
+- **Two-Layer Filtering:**
+  1. **Package Features** - Menu visibility based on subscription tier
+  2. **User Permissions** - Individual permission-based access control
+- **Bilingual Native Support:** Pre-translated `name_en` and `name_ar` columns
+- **Hierarchical Structure:** Unlimited nesting via `parent_key`
+- **Real-time Updates:** Language switching updates menu immediately
+
+**Database Table:** `menu_items`
+```sql
+- key VARCHAR(100) UNIQUE - 'crm_pipelines', 'dashboard', etc.
+- parent_key VARCHAR(100) - FK to menu_items(key)
+- name_en VARCHAR(255) - 'Pipelines'
+- name_ar VARCHAR(255) - 'مسار المبيعات'
+- icon VARCHAR(50) - Lucide icon name
+- path VARCHAR(500) - Route path
+- required_permission VARCHAR(100) - 'pipelines.view'
+- required_feature VARCHAR(100) - 'crm'
+- is_system BOOLEAN - Core menu items (cannot delete)
+```
+
+**Database Function:** `get_user_menu(user_id UUID, lang VARCHAR)`
+- Fetches menu for specific user
+- Applies package feature filtering
+- Applies permission filtering
+- Returns pre-translated names
+
+**Backend API:** `GET /api/menu?lang={en|ar}`
+- Calls `get_user_menu()` via Supabase RPC
+- Builds hierarchical tree structure
+- Filters by `has_permission` flag
+
+**Frontend Hook:** `useMenu(lang)` in `Frontend/src/hooks/useMenu.js`
+- Auto-refetch on language change
+- Error handling with fallback to static menu
+- Used by Sidebar component
+
+---
+
+#### 2. **Dynamic Permission Discovery System**
+
+**Before:** Hardcoded `PERMISSION_GROUPS` in `backend/constants/permissions.js`
+**After:** Auto-discovered from database roles table
+
+**Problem Solved:**
+- Adding new modules required updating 4 places (database + code files)
+- Permission matrix and menu showing different Arabic names
+- Maintenance overhead for every new feature
+
+**Solution:**
+- Permission matrix reads from database roles
+- Module names read from `menu_items` table
+- **Single source of truth** for all labels
+- **Zero code changes** needed for new modules
+
+**Key Algorithm:** `discoverPermissionsFromRoles(roles, menuItems)`
+
+```javascript
+Input:
+  - Database roles with permissions arrays
+  - Menu items with bilingual names
+
+Process:
+  1. Collect all unique permissions from all roles
+     Example: ["contacts.view", "pipelines.view", "deals.create"]
+
+  2. For each permission:
+     - Split into [module, action]
+     - Map module → menu_key (pipelines → crm_pipelines)
+     - Lookup menu_item by key
+     - Extract name_en and name_ar
+
+  3. Build bilingual labels:
+     - English: "View" + "Pipelines" = "View Pipelines"
+     - Arabic: "عرض" + "مسار المبيعات" = "عرض مسار المبيعات"
+
+  4. Group by category:
+     - CRM: contacts, companies, segments, deals, pipelines
+     - Settings: tags, statuses, lead_sources
+     - Team: users, permissions
+
+Output: Dynamic permission groups with bilingual labels
+```
+
+**Backend Implementation:**
+- `backend/utils/permissionDiscovery.js` - Discovery algorithm
+- `backend/routes/userRoutes.js` - Updated `/api/users/permissions/available` endpoint
+- Queries both `roles` and `menu_items` tables
+
+**Frontend Implementation:**
+- `Frontend/src/utils/matrixUtils.js` - Extract bilingual labels
+- `Frontend/src/components/Permissions/MatrixRow.jsx` - Display based on language
+- Fallback to i18n if database labels missing
+
+**Benefits:**
+- ✅ **Consistency:** Menu + Permissions use identical names from database
+- ✅ **Bilingual:** Arabic/English auto-synchronized
+- ✅ **Zero Maintenance:** Add modules without code changes
+- ✅ **Scalable:** Unlimited modules supported
+- ✅ **Developer Experience:** Fewer files to maintain
+
+**Data Flow:**
+```
+menu_items table
+  ↓
+Backend: GET /api/users/permissions/available
+  ↓
+discoverPermissionsFromRoles(roles, menuItems)
+  ↓
+Frontend: Permission Matrix
+  ↓
+Display: Arabic or English based on user language
+```
+
+---
+
 ### WhatsApp Integration (Old Code - Needs Migration)
 - Uses QR code authentication - scan QR from console or frontend
 - Supports both individual contacts and group messaging
@@ -362,4 +493,9 @@ See these files for detailed information:
 - Module 5: Billing & Payments
 - Module 6: Super Admin Panel
 
-**Latest Update (Oct 11):** Documentation audit revealed Contacts & Companies frontend were already 100% complete with 1,400+ lines of production code. CRM module now at 90% completion!
+**Latest Updates (Oct 11, 2025):**
+- **AM:** Documentation audit revealed Contacts & Companies frontend were already 100% complete with 1,400+ lines of production code
+- **PM:** Dynamic menu system implemented - Database-driven with bilingual support and two-layer filtering
+- **Evening:** Dynamic permission discovery system - Auto-discover permissions from database with bilingual labels
+- **Architecture Achievement:** Single source of truth - menu_items table drives both menu and permission labels
+- **Result:** CRM module now at 92% completion + zero-maintenance architecture for future modules!

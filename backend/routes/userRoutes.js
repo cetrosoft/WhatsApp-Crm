@@ -11,6 +11,7 @@ import { setTenantContext } from '../middleware/tenant.js';
 import { createInvitation, acceptInvitation, verifyInvitation } from '../services/invitationService.js';
 import { getUserPermissionsSummary, getEffectivePermissions } from '../utils/permissions.js';
 import { PERMISSION_GROUPS, ROLE_PERMISSIONS } from '../constants/permissions.js';
+import { discoverPermissionsFromRoles } from '../utils/permissionDiscovery.js';
 
 const router = express.Router();
 
@@ -569,15 +570,29 @@ router.get('/permissions/available', authenticate, setTenantContext, authorize([
       throw rolesError;
     }
 
+    // Fetch menu items for bilingual labels (name_en, name_ar)
+    const { data: menuItems, error: menuError } = await supabase
+      .from('menu_items')
+      .select('key, name_en, name_ar, required_permission')
+      .eq('is_active', true);
+
+    if (menuError) {
+      console.warn('Failed to fetch menu items for labels:', menuError);
+      // Continue with empty menu items - will use fallback labels
+    }
+
     // Build roles map with DB permissions
     const rolesMap = {};
     roles.forEach(role => {
       rolesMap[role.slug] = role.permissions || [];
     });
 
-    // Return PERMISSION_GROUPS and DB-sourced role permissions
+    // Dynamically discover all permissions from database roles with bilingual labels
+    const dynamicGroups = discoverPermissionsFromRoles(roles, menuItems || []);
+
+    // Return dynamic permission groups and DB-sourced role permissions
     res.json({
-      groups: PERMISSION_GROUPS,
+      groups: dynamicGroups,
       roles: rolesMap
     });
   } catch (error) {

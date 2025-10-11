@@ -16,8 +16,9 @@ const MatrixRow = ({
   onToggle,
   disabled = false,
 }) => {
-  const { t } = useTranslation(['common']);
+  const { t, i18n } = useTranslation(['common']);
   const resource = resourceData.key;
+  const currentLanguage = i18n.language;
 
   // Check if this resource has this specific action available
   const hasAction = (actionKey) => {
@@ -90,11 +91,23 @@ const MatrixRow = ({
     );
   };
 
+  // Get resource display name (use bilingual label from backend if available)
+  const getResourceDisplayName = () => {
+    if (currentLanguage === 'ar' && resourceData.label_ar) {
+      return resourceData.label_ar;
+    }
+    if (resourceData.label_en) {
+      return resourceData.label_en;
+    }
+    // Fallback to i18n translation
+    return t(`common:${resource}`);
+  };
+
   return (
     <tr className="border-t border-gray-200 hover:bg-gray-50 transition-colors">
       {/* Resource Name */}
       <td className="px-4 py-3 text-sm font-medium text-gray-900">
-        {t(`common:${resource}`)}
+        {getResourceDisplayName()}
       </td>
 
       {/* Action Checkboxes */}

@@ -105,15 +105,31 @@ export const groupPermissionsByModule = (availablePermissions) => {
 
   const modules = {};
 
+  // Build a map of resource labels from backend (supports bilingual labels)
+  const resourceLabelsMap = {};
+
   Object.entries(availablePermissions.groups).forEach(([groupKey, group]) => {
     const resources = new Set();
 
+    // Collect resource names and their bilingual labels from backend
     group.permissions.forEach((perm) => {
       const permKey = typeof perm === 'object' ? perm.key : perm;
       const [resource] = permKey.split('.');
 
       if (resource) {
         resources.add(resource);
+
+        // Extract module labels from first permission of each resource (if available)
+        if (perm.label_en && perm.label_ar && !resourceLabelsMap[resource]) {
+          // Extract module name from permission label (e.g., "View Pipelines" → "Pipelines")
+          const moduleNameEn = perm.label_en.split(' ').slice(1).join(' ') || getResourceLabel(resource);
+          const moduleNameAr = perm.label_ar.split(' ').slice(1).join(' ') || getResourceLabel(resource);
+
+          resourceLabelsMap[resource] = {
+            label_en: moduleNameEn,
+            label_ar: moduleNameAr
+          };
+        }
       }
     });
 
@@ -121,7 +137,9 @@ export const groupPermissionsByModule = (availablePermissions) => {
       label: group.label,
       resources: Array.from(resources).map((resource) => ({
         key: resource,
-        label: getResourceLabel(resource),
+        label: getResourceLabel(resource), // Fallback for backward compatibility
+        label_en: resourceLabelsMap[resource]?.label_en || getResourceLabel(resource),
+        label_ar: resourceLabelsMap[resource]?.label_ar || getResourceLabel(resource),
         actions: getAvailableActions(resource, availablePermissions),
       })),
     };
