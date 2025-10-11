@@ -23,6 +23,7 @@ import countriesRoutes from './routes/countriesRoutes.js';
 import statusesRoutes from './routes/statusesRoutes.js';
 import tagRoutes from './routes/tagRoutes.js';
 import leadSourcesRoutes from './routes/leadSourcesRoutes.js';
+import menuRoutes from './routes/menuRoutes.js';
 
 // CRM Routes
 import contactRoutes from './routes/contactRoutes.js';
@@ -67,6 +68,7 @@ app.use('/api/countries', countriesRoutes);
 app.use('/api/statuses', statusesRoutes);
 app.use('/api/tags', tagRoutes);
 app.use('/api/lead-sources', leadSourcesRoutes);
+app.use('/api/menu', menuRoutes);
 
 // CRM Routes
 app.use('/api/crm/contacts', contactRoutes);

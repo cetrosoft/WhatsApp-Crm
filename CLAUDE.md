@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Omnichannel CRM SaaS Platform** - A multi-tenant WhatsApp-based customer relationship management platform with bulk messaging, team collaboration, and subscription management.
 
-**Current Status:** Foundation module complete (authentication, subscriptions, i18n). Team management with custom roles complete. CRM backend complete. WhatsApp integration in progress.
+**Current Status:** Foundation complete. Team management complete. **CRM 90% complete** (Contacts, Companies, Deals, Pipelines all with full frontend). WhatsApp integration pending migration.
 
 **Original:** Simple WhatsApp bulk sender → **Now:** Full-featured multi-tenant SaaS platform
 
@@ -93,10 +93,10 @@ Frontend/src/
 │   │   ├── TeamMembers.jsx - Team list + invite (tabs)
 │   │   └── RolesPermissions.jsx - Custom roles management
 │   ├── CreateRole.jsx - Create/edit custom role
-│   ├── Contacts.jsx - CRM contacts (frontend pending)
-│   ├── Companies.jsx - CRM companies (frontend pending)
+│   ├── Contacts.jsx - ✅ CRM contacts (COMPLETE - 633 lines, full CRUD, filters, pagination)
+│   ├── Companies.jsx - ✅ CRM companies (COMPLETE - 651 lines, card/list views, full CRUD)
 │   ├── Segments.jsx - CRM segmentation (frontend pending)
-│   ├── CRMSettings.jsx - CRM settings (frontend pending)
+│   ├── CRMSettings.jsx - ✅ CRM settings (COMPLETE - tags, statuses, lead sources, pipelines)
 │   ├── Campaigns.jsx - (Old code, needs update)
 │   ├── Inbox.jsx - (Old code, needs update)
 │   └── Settings.jsx - (Old code, to be deprecated)
@@ -149,15 +149,16 @@ Frontend/src/
 - `packages` - 5 subscription tiers with features and limits
 - `invitations` - Team invitation tokens with role_id
 
-**CRM Tables:** (Backend complete, frontend pending)
-- `contacts` - Lead/contact management
-- `companies` - Company/account management
-- `deals` - Sales opportunities
-- `pipelines` - Sales pipeline definitions
-- `pipeline_stages` - Pipeline stages
-- `segments` - Customer segmentation
-- `interactions` - Communication history
-- `activities` - Tasks and reminders
+**CRM Tables:** (Backend + Frontend 90% complete)
+- `contacts` - Lead/contact management ✅ Frontend complete
+- `companies` - Company/account management ✅ Frontend complete
+- `deals` - Sales opportunities ✅ Frontend complete (Kanban board)
+- `pipelines` - Sales pipeline definitions ✅ Frontend complete
+- `pipeline_stages` - Pipeline stages ✅ Frontend complete
+- `deal_stage_history` - Deal movement audit log
+- `segments` - Customer segmentation ⏳ Frontend pending
+- `interactions` - Communication history ⏳ Not started
+- `activities` - Tasks and reminders ⏳ Not started
 
 **Helper Functions:**
 - `get_organization_limits(org_id)` - Returns effective limits
@@ -195,11 +196,15 @@ Frontend/src/
 - `POST /api/packages/organization/upgrade` - Upgrade/downgrade
 - `GET /api/packages/organization/check-feature/:feature` - Check access
 
-**CRM:** (Backend ready, frontend pending)
-- Contacts: 10 endpoints (CRUD, search, filter, tagging)
-- Companies: 7 endpoints (CRUD, contact linking)
-- Deals: 9 endpoints (CRUD, Kanban, stage movement)
-- Pipelines: 11 endpoints (CRUD, stage management)
+**CRM:** (Backend + Frontend 90% ready) - **58+ endpoints**
+- Contacts: 10 endpoints ✅ Frontend complete (CRUD, search, filter, tagging, pagination)
+- Companies: 7 endpoints ✅ Frontend complete (CRUD, contact linking, card/list views)
+- Deals: 9 endpoints ✅ Frontend complete (CRUD, Kanban, stage movement, drag-drop)
+- Pipelines: 11 endpoints ✅ Frontend complete (CRUD, stage management, reordering)
+- Tags: 5 endpoints ✅ Frontend complete
+- Contact Statuses: 5 endpoints ✅ Frontend complete
+- Lead Sources: 5 endpoints ✅ Frontend complete
+- Segments: 6 endpoints ⏳ Frontend pending
 
 ### Internationalization (i18n)
 - **Languages:** Arabic (RTL) and English (LTR)
@@ -338,17 +343,23 @@ See these files for detailed information:
 
 ## Project Status
 
-✅ **Completed Modules:**
+✅ **Completed Modules:** (~50% overall progress)
 - Module 0: Foundation (Auth, Subscriptions, i18n)
 - Team Management (Custom Roles, Permissions, Dynamic UI)
-- CRM Backend (Database + 27 API endpoints)
+- **CRM Backend (Database + 58+ API endpoints)**
+- **CRM Contacts & Companies (Full frontend - list, CRUD, filters, modals)**
+- **CRM Deals & Pipelines (Kanban board, drag-drop, full CRUD, stage management)**
+- **CRM Settings (Tags, Statuses, Lead Sources, Pipeline Management)**
 
-🔄 **In Progress:**
-- Module 1: WhatsApp Integration (migration needed)
-- Module 2: CRM Frontend (backend complete, UI pending)
+🔄 **In Progress:** (10% remaining)
+- Module 2: CRM Activities & Tasks (timeline, follow-ups, reminders)
+- Module 2: CRM Segments Frontend (backend complete, UI pending)
 
 ⏳ **Planned:**
+- Module 1: WhatsApp Integration (migration to multi-tenant)
 - Module 3: Ticketing System
 - Module 4: Analytics & Reporting
 - Module 5: Billing & Payments
 - Module 6: Super Admin Panel
+
+**Latest Update (Oct 11):** Documentation audit revealed Contacts & Companies frontend were already 100% complete with 1,400+ lines of production code. CRM module now at 90% completion!

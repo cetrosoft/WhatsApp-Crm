@@ -10,7 +10,7 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { Plus, DollarSign } from 'lucide-react';
 import DealCard from '../DealCard';
 
-const KanbanColumn = ({ stage, deals, totalValue, canEdit, canDelete, onAddDeal }) => {
+const KanbanColumn = ({ stage, deals, totalValue, canEdit, canDelete, onAddDeal, onEditDeal, onDeleteDeal, groupBy }) => {
   const { t, i18n } = useTranslation(['common']);
   const isRTL = i18n.language === 'ar';
 
@@ -94,7 +94,7 @@ const KanbanColumn = ({ stage, deals, totalValue, canEdit, canDelete, onAddDeal 
       {/* Drop Zone */}
       <div
         ref={setNodeRef}
-        className={`min-h-[400px] max-h-[calc(100vh-350px)] overflow-y-auto rounded-lg p-3 transition-all duration-200 ${
+        className={`min-h-[400px] rounded-lg p-3 transition-all duration-200 ${
           isOver
             ? 'bg-indigo-50 border-2 border-dashed border-indigo-400 shadow-inner'
             : 'bg-gray-50 border-2 border-transparent'
@@ -114,6 +114,9 @@ const KanbanColumn = ({ stage, deals, totalValue, canEdit, canDelete, onAddDeal 
                 deal={deal}
                 canEdit={canEdit}
                 canDelete={canDelete}
+                onEdit={onEditDeal}
+                onDelete={onDeleteDeal}
+                groupBy={groupBy}
               />
             ))}
           </SortableContext>

@@ -7,11 +7,11 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { MoreVertical, Edit2, Trash2, User, Building2, DollarSign, Calendar, Target } from 'lucide-react';
+import { MoreVertical, Edit2, Trash2, User, Building2, DollarSign, Calendar, Target, Clock } from 'lucide-react';
 import { dealAPI } from '../services/api';
 import toast from 'react-hot-toast';
 
-const DealCard = ({ deal, canEdit, canDelete, onEdit, onDelete, isDragging }) => {
+const DealCard = ({ deal, canEdit, canDelete, onEdit, onDelete, isDragging, groupBy }) => {
   const { t, i18n } = useTranslation(['common']);
   const isRTL = i18n.language === 'ar';
   const [showMenu, setShowMenu] = useState(false);
@@ -52,14 +52,25 @@ const DealCard = ({ deal, canEdit, canDelete, onEdit, onDelete, isDragging }) =>
   };
 
   /**
-   * Format date
+   * Format date (Gregorian calendar for both languages)
    */
   const formatDate = (date) => {
     if (!date) return '';
-    return new Date(date).toLocaleDateString(i18n.language === 'ar' ? 'ar-SA' : 'en-US', {
+    return new Date(date).toLocaleDateString(i18n.language === 'ar' ? 'ar-EG' : 'en-US', {
       month: 'short',
       day: 'numeric',
     });
+  };
+
+  /**
+   * Calculate deal age (days since creation)
+   */
+  const getDealAge = () => {
+    if (!deal.created_at) return null;
+    const days = Math.floor((Date.now() - new Date(deal.created_at)) / (1000 * 60 * 60 * 24));
+    if (days === 0) return isRTL ? 'اليوم' : 'Today';
+    if (days === 1) return isRTL ? 'أمس' : '1d';
+    return isRTL ? `${days} يوم` : `${days}d`;
   };
 
   /**
@@ -80,9 +91,6 @@ const DealCard = ({ deal, canEdit, canDelete, onEdit, onDelete, isDragging }) =>
     setShowMenu(false);
     if (onEdit) {
       onEdit(deal);
-    } else {
-      // TODO: Open deal modal (Session 2)
-      toast('Deal modal coming in Session 2', { icon: 'ℹ️' });
     }
   };
 
@@ -122,9 +130,29 @@ const DealCard = ({ deal, canEdit, canDelete, onEdit, onDelete, isDragging }) =>
     >
       {/* Header */}
       <div className="flex items-start justify-between mb-3">
-        <h3 className="font-semibold text-gray-900 text-sm flex-1 line-clamp-2">
-          {deal.title}
-        </h3>
+        <div className="flex-1 flex flex-col gap-2">
+          {/* Username Badge (when grouped by assignedTo) */}
+          {groupBy === 'assignedTo' && deal.assigned_to_user && (
+            <div className="flex items-center gap-1">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-600">
+                <User className="w-3 h-3" />
+                {deal.assigned_to_user.full_name || deal.assigned_to_user.email}
+              </span>
+            </div>
+          )}
+          <h3 className="font-semibold text-gray-900 text-sm line-clamp-2">
+            {deal.title}
+          </h3>
+          {/* Age Badge */}
+          {getDealAge() && (
+            <div className="flex items-center gap-1">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                <Clock className="w-3 h-3" />
+                {getDealAge()}
+              </span>
+            </div>
+          )}
+        </div>
         {(canEdit || canDelete) && (
           <div className="relative ms-2">
             <button
@@ -172,7 +200,7 @@ const DealCard = ({ deal, canEdit, canDelete, onEdit, onDelete, isDragging }) =>
       {/* Amount */}
       <div className="flex items-center gap-2 mb-3">
         <DollarSign className="w-4 h-4 text-green-600" />
-        <span className="font-bold text-lg text-green-600">
+        <span className="font-medium text-base text-green-600">
           {formatCurrency(deal.value)}
         </span>
       </div>

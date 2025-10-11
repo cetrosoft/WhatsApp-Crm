@@ -414,13 +414,16 @@ router.put('/:id', async (req, res) => {
       title,
       value,
       currency,
+      pipeline_id,
+      stage_id,
       contact_id,
       company_id,
       probability,
       expected_close_date,
       tags,
       notes,
-      assigned_to
+      assigned_to,
+      stage_order
     } = req.body;
 
     // Check if deal exists
@@ -445,6 +448,8 @@ router.put('/:id', async (req, res) => {
     if (title !== undefined) updateData.title = title;
     if (value !== undefined) updateData.value = value;
     if (currency !== undefined) updateData.currency = currency;
+    if (pipeline_id !== undefined) updateData.pipeline_id = pipeline_id;
+    if (stage_id !== undefined) updateData.stage_id = stage_id;
     if (contact_id !== undefined) updateData.contact_id = contact_id;
     if (company_id !== undefined) updateData.company_id = company_id;
     if (probability !== undefined) updateData.probability = probability;
@@ -452,6 +457,7 @@ router.put('/:id', async (req, res) => {
     if (tags !== undefined) updateData.tags = tags;
     if (notes !== undefined) updateData.notes = notes;
     if (assigned_to !== undefined) updateData.assigned_to = assigned_to;
+    if (stage_order !== undefined) updateData.stage_order = stage_order;
 
     const { data, error } = await supabase
       .from('deals')
