@@ -37,9 +37,9 @@ function mapModuleToMenuKey(module) {
     'conversations': 'conversations',
     'tickets': 'tickets',
     'analytics': 'analytics',
-    'tags': 'crm_settings',
-    'statuses': 'crm_settings',
-    'lead_sources': 'crm_settings',
+    'tags': 'tags',
+    'statuses': 'contact_statuses',
+    'lead_sources': 'lead_sources',
     'users': 'team_members',
     'permissions': 'team_roles',
     'organization': 'settings_account'

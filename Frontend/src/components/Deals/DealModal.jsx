@@ -5,10 +5,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { dealAPI, contactAPI, companyAPI, userAPI } from '../../services/api';
-import { X } from 'lucide-react';
+import { dealAPI, contactAPI, companyAPI, userAPI, tagAPI } from '../../services/api';
+import { X, Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
 import SearchableSelect from '../SearchableSelect';
+import { useAuth } from '../../contexts/AuthContext';
+import { hasPermission } from '../../utils/permissionUtils';
 
 const CURRENCIES = [
   { value: 'USD', label: 'USD ($)' },
@@ -18,7 +20,9 @@ const CURRENCIES = [
 ];
 
 const DealModal = ({ deal, pipeline, stages, onSave, onClose }) => {
-  const { t } = useTranslation(['common']);
+  const { t, i18n } = useTranslation(['common']);
+  const { user } = useAuth();
+  const isRTL = i18n.language === 'ar';
   const isEdit = !!deal;
 
   // Form state
@@ -34,8 +38,20 @@ const DealModal = ({ deal, pipeline, stages, onSave, onClose }) => {
     probability: deal?.probability || 50,
     assigned_to: deal?.assigned_to || '',
     notes: deal?.notes || '',
-    tags: deal?.tags || [],
+    tags: deal?.tags || [], // Array of tag IDs
   });
+
+  // If deal has tag_details, add them to tags state immediately
+  useEffect(() => {
+    if (deal?.tag_details && deal.tag_details.length > 0) {
+      setTags(prevTags => {
+        // Merge existing tags with deal's tag_details
+        const existingIds = prevTags.map(t => t.id);
+        const newTags = deal.tag_details.filter(t => !existingIds.includes(t.id));
+        return [...prevTags, ...newTags];
+      });
+    }
+  }, [deal]);
 
   const [tagInput, setTagInput] = useState('');
   const [saving, setSaving] = useState(false);
@@ -45,6 +61,7 @@ const DealModal = ({ deal, pipeline, stages, onSave, onClose }) => {
   const [contacts, setContacts] = useState([]);
   const [companies, setCompanies] = useState([]);
   const [users, setUsers] = useState([]);
+  const [tags, setTags] = useState([]); // Available tags from database
   const [loadingDropdowns, setLoadingDropdowns] = useState(true);
 
   /**
@@ -54,15 +71,17 @@ const DealModal = ({ deal, pipeline, stages, onSave, onClose }) => {
     const loadDropdownData = async () => {
       try {
         setLoadingDropdowns(true);
-        const [contactsRes, companiesRes, usersRes] = await Promise.all([
+        const [contactsRes, companiesRes, usersRes, tagsRes] = await Promise.all([
           contactAPI.getContacts({ limit: 1000 }),
           companyAPI.getCompanies({ limit: 1000 }),
           userAPI.getUsers(),
+          tagAPI.getTags(),
         ]);
 
         setContacts(contactsRes.data || []);
         setCompanies(companiesRes.data || []);
         setUsers(usersRes.users || []);
+        setTags(tagsRes.tags || []);
       } catch (error) {
         console.error('Error loading dropdown data:', error);
         toast.error(t('failedToLoadData'));
@@ -121,19 +140,80 @@ const DealModal = ({ deal, pipeline, stages, onSave, onClose }) => {
   const handleTagKeyDown = (e) => {
     if (e.key === 'Enter' || e.key === ',') {
       e.preventDefault();
-      addTag();
+      addTag(e);
     }
   };
 
   /**
-   * Add tag
+   * Add tag (auto-create if doesn't exist)
    */
-  const addTag = () => {
-    const tag = tagInput.trim();
-    if (tag && !formData.tags.includes(tag)) {
+  const addTag = async (e) => {
+    e.preventDefault();
+    if (!tagInput.trim()) return;
+
+    const newTagName = tagInput.trim();
+
+    // Check if tag already exists in available tags
+    let existingTag = tags.find(tag =>
+      tag.name_en.toLowerCase() === newTagName.toLowerCase() ||
+      (tag.name_ar && tag.name_ar.toLowerCase() === newTagName.toLowerCase())
+    );
+
+    // Check if already selected
+    if (existingTag && formData.tags.includes(existingTag.id)) {
+      toast.error(t('tagAlreadyExists'));
+      return;
+    }
+
+    let tagId;
+
+    if (existingTag) {
+      // Use existing tag
+      tagId = existingTag.id;
+    } else {
+      // Check permission before attempting to create new tag
+      if (!hasPermission(user, 'tags.create')) {
+        toast.error(t('permissionDenied'), { duration: 5000 });
+        return;
+      }
+
+      // Auto-create new tag
+      try {
+        const response = await tagAPI.createTag({
+          name_en: newTagName,
+          name_ar: newTagName, // Same for both initially
+          color: '#6366f1' // Default color
+        });
+
+        if (response.success) {
+          const newTag = response.tag;
+          setTags(prev => [...prev, newTag]);
+          tagId = newTag.id;
+          toast.success(t('newTagCreated'));
+        }
+      } catch (error) {
+        if (error.response?.status === 403) {
+          toast.error(t('cannotCreateTags'), { duration: 5000 });
+          return;
+        }
+
+        if (error.message.includes('already exists')) {
+          // Tag was just created by another user, reload tags
+          const tagsRes = await tagAPI.getTags();
+          setTags(tagsRes.tags || []);
+          const reloadedTag = tagsRes.tags?.find(t => t.name_en.toLowerCase() === newTagName.toLowerCase());
+          if (reloadedTag) tagId = reloadedTag.id;
+        } else {
+          toast.error(t('failedToCreate', { resource: t('tag') }));
+          return;
+        }
+      }
+    }
+
+    if (tagId) {
       setFormData(prev => ({
         ...prev,
-        tags: [...prev.tags, tag]
+        tags: [...prev.tags, tagId]
       }));
       setTagInput('');
     }
@@ -142,10 +222,10 @@ const DealModal = ({ deal, pipeline, stages, onSave, onClose }) => {
   /**
    * Remove tag
    */
-  const removeTag = (tagToRemove) => {
+  const removeTag = (tagId) => {
     setFormData(prev => ({
       ...prev,
-      tags: prev.tags.filter(tag => tag !== tagToRemove)
+      tags: prev.tags.filter(id => id !== tagId)
     }));
   };
 
@@ -416,37 +496,53 @@ const DealModal = ({ deal, pipeline, stages, onSave, onClose }) => {
                   {t('tags')}
                 </label>
                 <div className="space-y-2">
+                  {/* Tag input */}
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={tagInput}
+                      onChange={(e) => setTagInput(e.target.value)}
+                      onKeyDown={handleTagKeyDown}
+                      placeholder={t('typeToAddTag')}
+                      className="flex-1 px-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    />
+                    <button
+                      type="button"
+                      onClick={addTag}
+                      className="px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition flex items-center gap-1"
+                    >
+                      <Plus className="w-4 h-4" />
+                      {t('add')}
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500">{t('pressEnterToAdd')}</p>
+
                   {/* Tag chips */}
                   {formData.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                      {formData.tags.map((tag, index) => (
-                        <span
-                          key={index}
-                          className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium bg-indigo-100 text-indigo-700"
-                        >
-                          {tag}
-                          <button
-                            type="button"
-                            onClick={() => removeTag(tag)}
-                            className="hover:text-indigo-900"
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {formData.tags.map((tagId) => {
+                        const tag = tags.find(t => t.id === tagId);
+                        if (!tag) return null;
+                        const tagName = isRTL && tag.name_ar ? tag.name_ar : tag.name_en;
+                        return (
+                          <span
+                            key={tagId}
+                            className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium text-white"
+                            style={{ backgroundColor: tag.color || '#6366f1' }}
                           >
-                            <X className="w-3 h-3" />
-                          </button>
-                        </span>
-                      ))}
+                            {tagName}
+                            <button
+                              type="button"
+                              onClick={() => removeTag(tagId)}
+                              className="hover:opacity-80 transition-opacity"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </span>
+                        );
+                      })}
                     </div>
                   )}
-                  {/* Tag input */}
-                  <input
-                    type="text"
-                    value={tagInput}
-                    onChange={(e) => setTagInput(e.target.value)}
-                    onKeyDown={handleTagKeyDown}
-                    onBlur={addTag}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                    placeholder={t('typeToAddTag')}
-                  />
-                  <p className="text-xs text-gray-500">{t('pressEnterToAdd')}</p>
                 </div>
               </div>
 

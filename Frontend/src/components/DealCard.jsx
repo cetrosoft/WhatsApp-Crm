@@ -21,7 +21,9 @@ const DealCard = ({ deal, canEdit, canDelete, onEdit, onDelete, isDragging, grou
     title: deal.title,
     value: deal.value,
     currency: deal.currency,
-    stageId: deal.stage_id
+    stageId: deal.stage_id,
+    tags: deal.tags,
+    tag_details: deal.tag_details
   });
 
   const {
@@ -124,7 +126,7 @@ const DealCard = ({ deal, canEdit, canDelete, onEdit, onDelete, isDragging, grou
       style={style}
       {...attributes}
       {...listeners}
-      className={`bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-3 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow ${
+      className={`bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-3 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow pointer-events-auto ${
         deleting ? 'opacity-50 pointer-events-none' : ''
       }`}
     >
@@ -270,19 +272,23 @@ const DealCard = ({ deal, canEdit, canDelete, onEdit, onDelete, isDragging, grou
       </div>
 
       {/* Tags */}
-      {deal.tags && deal.tags.length > 0 && (
+      {deal.tag_details && deal.tag_details.length > 0 && (
         <div className="flex flex-wrap gap-1 mt-3">
-          {deal.tags.slice(0, 3).map((tag, index) => (
-            <span
-              key={index}
-              className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700"
-            >
-              {tag}
-            </span>
-          ))}
-          {deal.tags.length > 3 && (
+          {deal.tag_details.slice(0, 3).map((tag) => {
+            const tagName = isRTL && tag.name_ar ? tag.name_ar : tag.name_en;
+            return (
+              <span
+                key={tag.id}
+                className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium text-white"
+                style={{ backgroundColor: tag.color || '#6366f1' }}
+              >
+                {tagName}
+              </span>
+            );
+          })}
+          {deal.tag_details.length > 3 && (
             <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-500">
-              +{deal.tags.length - 3}
+              +{deal.tag_details.length - 3}
             </span>
           )}
         </div>

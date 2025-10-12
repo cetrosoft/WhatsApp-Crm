@@ -590,5 +590,17 @@
   "noDate": "No Date",
   "today": "Today",
   "older": "Older",
-  "noTags": "No Tags"
+  "noTags": "No Tags",
+  "quickAddDeal": "Quick Add Deal",
+  "searchContactByName": "Search contact by name...",
+  "searching": "Searching",
+  "contactNotFound": "Contact not found",
+  "createNewContact": "Create New Contact",
+  "expectedRevenue": "Expected Revenue",
+  "adding": "Adding",
+  "newContactWillBeCreated": "A new contact will be created with this information",
+  "contactCreated": "Contact created successfully",
+  "contactPhoneExists": "A contact with this phone number already exists",
+  "invalidEmail": "Please enter a valid email address",
+  "optional": "optional"
 }

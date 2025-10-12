@@ -18,6 +18,61 @@ const router = express.Router();
 router.use(authenticateToken);
 
 /**
+ * Helper function: Fetch and attach tags to deals
+ * Same as in dealRoutes.js
+ */
+async function attachTagsToDeals(deals) {
+  if (!deals || deals.length === 0) return deals;
+
+  const dealIds = deals.map(d => d.id);
+  console.log('🔍 [PIPELINE - ATTACH TAGS] Fetching tags for deals:', dealIds);
+
+  // Get all deal_tags for these deals with tag details
+  const { data: dealTagsData, error } = await supabase
+    .from('deal_tags')
+    .select(`
+      deal_id,
+      tag:tags(id, name_en, name_ar, color)
+    `)
+    .in('deal_id', dealIds);
+
+  if (error) {
+    console.error('❌ [PIPELINE - ATTACH TAGS] Error fetching deal tags:', error);
+    return deals.map(deal => ({
+      ...deal,
+      tags: [],
+      tag_details: []
+    }));
+  }
+
+  console.log('✅ [PIPELINE - ATTACH TAGS] Fetched deal tags:', dealTagsData?.length || 0, 'records');
+
+  // Group tags by deal_id
+  const tagsByDeal = {};
+  dealTagsData?.forEach(dt => {
+    if (!tagsByDeal[dt.deal_id]) {
+      tagsByDeal[dt.deal_id] = [];
+    }
+    if (dt.tag) {
+      tagsByDeal[dt.deal_id].push(dt.tag);
+    }
+  });
+
+  console.log('📋 [PIPELINE - ATTACH TAGS] Tags grouped by deal:', Object.keys(tagsByDeal).length, 'deals have tags');
+
+  // Attach tag_details to each deal
+  const result = deals.map(deal => ({
+    ...deal,
+    tags: tagsByDeal[deal.id]?.map(t => t.id) || [],
+    tag_details: tagsByDeal[deal.id] || []
+  }));
+
+  console.log('🏁 [PIPELINE - ATTACH TAGS] Final result sample:', result[0]?.tag_details);
+
+  return result;
+}
+
+/**
  * GET /api/crm/pipelines
  * List all pipelines with stage counts
  */
@@ -522,9 +577,12 @@ router.get('/:id/deals', async (req, res) => {
 
     if (dealsError) throw dealsError;
 
+    // Attach tags to deals
+    const dealsWithTags = await attachTagsToDeals(deals || []);
+
     res.json({
       success: true,
-      deals: deals || []
+      deals: dealsWithTags
     });
   } catch (error) {
     console.error('Error fetching pipeline deals:', error);

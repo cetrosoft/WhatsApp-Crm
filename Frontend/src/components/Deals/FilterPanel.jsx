@@ -178,7 +178,10 @@ const FilterPanel = ({ filters, onFiltersChange, isOpen }) => {
   const getSelectedTagNames = () => {
     if (!filters.tags || filters.tags.length === 0) return t('selectTags');
     const selectedTags = tags.filter(tag => filters.tags.includes(tag.id));
-    if (selectedTags.length === 1) return selectedTags[0]?.name || selectedTags[0]?.name_en || t('tag');
+    if (selectedTags.length === 1) {
+      const tag = selectedTags[0];
+      return isRTL && tag?.name_ar ? tag.name_ar : tag?.name_en || t('tag');
+    }
     return `${selectedTags.length} ${t('tagsSelected')}`;
   };
 
@@ -198,7 +201,7 @@ const FilterPanel = ({ filters, onFiltersChange, isOpen }) => {
 
   // Filter tags based on search
   const filteredTags = tags.filter(tag => {
-    const tagName = tag.name || tag.name_en || '';
+    const tagName = isRTL && tag.name_ar ? tag.name_ar : tag.name_en || '';
     return tagName.toLowerCase().includes(tagSearchTerm.toLowerCase());
   });
 
@@ -354,7 +357,9 @@ const FilterPanel = ({ filters, onFiltersChange, isOpen }) => {
                           onChange={() => toggleTag(tag.id)}
                           className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
                         />
-                        <span className="ms-2 text-sm text-gray-700">{tag.name || tag.name_en || t('tag')}</span>
+                        <span className="ms-2 text-sm text-gray-700">
+                          {isRTL && tag.name_ar ? tag.name_ar : tag.name_en || t('tag')}
+                        </span>
                       </label>
                     ))
                   )}

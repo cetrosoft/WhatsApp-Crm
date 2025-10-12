@@ -18,6 +18,66 @@ const router = express.Router();
 router.use(authenticateToken);
 
 /**
+ * Helper function: Fetch and attach tags to deals
+ * Queries deal_tags junction table and tags lookup table
+ * Attaches both tag IDs array and tag_details array to each deal
+ *
+ * @param {Array} deals - Array of deal objects
+ * @returns {Array} Deals with tags and tag_details attached
+ */
+async function attachTagsToDeals(deals) {
+  if (!deals || deals.length === 0) return deals;
+
+  const dealIds = deals.map(d => d.id);
+  console.log('🔍 [ATTACH TAGS] Fetching tags for deals:', dealIds);
+
+  // Get all deal_tags for these deals with tag details
+  const { data: dealTagsData, error } = await supabase
+    .from('deal_tags')
+    .select(`
+      deal_id,
+      tag:tags(id, name_en, name_ar, color)
+    `)
+    .in('deal_id', dealIds);
+
+  if (error) {
+    console.error('❌ [ATTACH TAGS] Error fetching deal tags:', error);
+    // Return deals without tags rather than failing entirely
+    return deals.map(deal => ({
+      ...deal,
+      tags: [],
+      tag_details: []
+    }));
+  }
+
+  console.log('✅ [ATTACH TAGS] Fetched deal tags:', dealTagsData?.length || 0, 'records');
+
+  // Group tags by deal_id
+  const tagsByDeal = {};
+  dealTagsData?.forEach(dt => {
+    if (!tagsByDeal[dt.deal_id]) {
+      tagsByDeal[dt.deal_id] = [];
+    }
+    if (dt.tag) {
+      tagsByDeal[dt.deal_id].push(dt.tag);
+    }
+  });
+
+  console.log('📋 [ATTACH TAGS] Tags grouped by deal:', Object.keys(tagsByDeal).length, 'deals have tags');
+
+  // Attach tag_details to each deal
+  const result = deals.map(deal => ({
+    ...deal,
+    tags: tagsByDeal[deal.id]?.map(t => t.id) || [], // Array of tag IDs for compatibility
+    tag_details: tagsByDeal[deal.id] || [] // Array of full tag objects
+  }));
+
+  console.log('🏁 [ATTACH TAGS] Final result sample:', result[0]?.tag_details);
+
+  return result;
+}
+
+/**
  * GET /api/crm/deals
  * List all deals with filtering and pagination
  * Optimized for Kanban board view
@@ -85,9 +145,12 @@ router.get('/', async (req, res) => {
 
     if (error) throw error;
 
+    // Attach tags to deals
+    const dealsWithTags = await attachTagsToDeals(data || []);
+
     res.json({
       success: true,
-      data
+      data: dealsWithTags
     });
   } catch (error) {
     console.error('Error fetching deals:', error);
@@ -144,13 +207,16 @@ router.get('/kanban/:pipelineId', async (req, res) => {
 
     if (dealsError) throw dealsError;
 
+    // Attach tags to deals
+    const dealsWithTags = await attachTagsToDeals(deals || []);
+
     // Organize deals by stage
     const stages = pipeline.stages.sort((a, b) => a.display_order - b.display_order);
     const kanbanData = stages.map(stage => ({
       ...stage,
-      deals: deals.filter(deal => deal.stage_id === stage.id),
-      deal_count: deals.filter(deal => deal.stage_id === stage.id).length,
-      total_value: deals
+      deals: dealsWithTags.filter(deal => deal.stage_id === stage.id),
+      deal_count: dealsWithTags.filter(deal => deal.stage_id === stage.id).length,
+      total_value: dealsWithTags
         .filter(deal => deal.stage_id === stage.id)
         .reduce((sum, deal) => sum + parseFloat(deal.value || 0), 0)
     }));
@@ -264,9 +330,12 @@ router.get('/:id', async (req, res) => {
       throw error;
     }
 
+    // Attach tags to deal
+    const [dealWithTags] = await attachTagsToDeals([data]);
+
     res.json({
       success: true,
-      data
+      data: dealWithTags
     });
   } catch (error) {
     console.error('Error fetching deal:', error);
@@ -344,7 +413,7 @@ router.post('/', async (req, res) => {
 
     const stage_order = (maxOrder?.stage_order || 0) + 1;
 
-    // Create deal
+    // Create deal (without tags - they'll be added via junction table)
     const { data, error } = await supabase
       .from('deals')
       .insert({
@@ -359,7 +428,6 @@ router.post('/', async (req, res) => {
         company_id,
         probability: probability !== undefined ? probability : stage.probability,
         expected_close_date,
-        tags,
         notes,
         assigned_to: assigned_to || userId,
         stage_order
@@ -376,6 +444,30 @@ router.post('/', async (req, res) => {
 
     if (error) throw error;
 
+    // Insert tags into junction table
+    if (tags && tags.length > 0) {
+      console.log('📌 [CREATE DEAL] Inserting tags:', tags);
+      const dealTagsData = tags.map(tagId => ({
+        deal_id: data.id,
+        tag_id: tagId
+      }));
+
+      console.log('📌 [CREATE DEAL] Deal tags data:', dealTagsData);
+
+      const { error: tagsError } = await supabase
+        .from('deal_tags')
+        .insert(dealTagsData);
+
+      if (tagsError) {
+        console.error('❌ [CREATE DEAL] Error inserting deal tags:', tagsError);
+        // Don't fail the whole request if tags fail - just log it
+      } else {
+        console.log('✅ [CREATE DEAL] Tags inserted successfully');
+      }
+    } else {
+      console.log('⚠️ [CREATE DEAL] No tags to insert');
+    }
+
     // Log stage history
     await supabase
       .from('deal_stage_history')
@@ -387,10 +479,13 @@ router.post('/', async (req, res) => {
         notes: 'Deal created'
       });
 
+    // Attach tags to response
+    const [dealWithTags] = await attachTagsToDeals([data]);
+
     res.status(201).json({
       success: true,
       message: 'Deal created successfully',
-      data
+      data: dealWithTags
     });
   } catch (error) {
     console.error('Error creating deal:', error);
@@ -443,7 +538,7 @@ router.put('/:id', async (req, res) => {
       });
     }
 
-    // Update deal
+    // Update deal (excluding tags - they'll be handled via junction table)
     const updateData = {};
     if (title !== undefined) updateData.title = title;
     if (value !== undefined) updateData.value = value;
@@ -454,7 +549,6 @@ router.put('/:id', async (req, res) => {
     if (company_id !== undefined) updateData.company_id = company_id;
     if (probability !== undefined) updateData.probability = probability;
     if (expected_close_date !== undefined) updateData.expected_close_date = expected_close_date;
-    if (tags !== undefined) updateData.tags = tags;
     if (notes !== undefined) updateData.notes = notes;
     if (assigned_to !== undefined) updateData.assigned_to = assigned_to;
     if (stage_order !== undefined) updateData.stage_order = stage_order;
@@ -475,10 +569,53 @@ router.put('/:id', async (req, res) => {
 
     if (error) throw error;
 
+    // Handle tags update via junction table
+    if (tags !== undefined) {
+      console.log('📌 [UPDATE DEAL] Updating tags for deal:', id);
+      console.log('📌 [UPDATE DEAL] New tags:', tags);
+
+      // Delete existing tags
+      const { error: deleteError } = await supabase
+        .from('deal_tags')
+        .delete()
+        .eq('deal_id', id);
+
+      if (deleteError) {
+        console.error('❌ [UPDATE DEAL] Error deleting old deal tags:', deleteError);
+      } else {
+        console.log('✅ [UPDATE DEAL] Old tags deleted');
+      }
+
+      // Insert new tags
+      if (tags && tags.length > 0) {
+        const dealTagsData = tags.map(tagId => ({
+          deal_id: id,
+          tag_id: tagId
+        }));
+
+        console.log('📌 [UPDATE DEAL] Inserting tags data:', dealTagsData);
+
+        const { error: insertError } = await supabase
+          .from('deal_tags')
+          .insert(dealTagsData);
+
+        if (insertError) {
+          console.error('❌ [UPDATE DEAL] Error inserting new deal tags:', insertError);
+        } else {
+          console.log('✅ [UPDATE DEAL] New tags inserted successfully');
+        }
+      } else {
+        console.log('⚠️ [UPDATE DEAL] No new tags to insert');
+      }
+    }
+
+    // Attach tags to response
+    const [dealWithTags] = await attachTagsToDeals([data]);
+
     res.json({
       success: true,
       message: 'Deal updated successfully',
-      data
+      data: dealWithTags
     });
   } catch (error) {
     console.error('Error updating deal:', error);

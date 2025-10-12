@@ -1,6 +1,6 @@
 # Omnichannel CRM SaaS - Project Progress
 
-**Last Updated:** October 11, 2025 (Evening - Dynamic Permissions)
+**Last Updated:** October 12, 2025 (CRM Deals Tags & UX Improvements)
 
 ---
 
@@ -12,14 +12,14 @@
 |--------|--------|----------|-----------------|
 | **Module 0: Foundation** | ✅ Complete | 100% | Oct 2, 2025 |
 | **Team Management** | ✅ Complete | 100% | Oct 7, 2025 |
-| **Module 2: CRM System** | 🔄 In Progress | 90% | ETA: Oct 15, 2025 |
+| **Module 2: CRM System** | 🔄 In Progress | 98% | ETA: Oct 15, 2025 |
 | **Module 1: WhatsApp Integration** | ⏳ Pending | 0% | TBD |
 | **Module 3: Ticketing System** | ⏳ Pending | 0% | TBD |
 | **Module 4: Analytics & Reporting** | ⏳ Pending | 0% | TBD |
 | **Module 5: Billing & Payments** | ⏳ Pending | 0% | TBD |
 | **Module 6: Super Admin Panel** | ⏳ Pending | 0% | TBD |
 
-**Overall Project Completion:** ~52% ⬆️ (+2% from dynamic permissions)
+**Overall Project Completion:** ~54% ⬆️ (+2% from tags & UX improvements)
 
 ---
 
@@ -120,13 +120,13 @@
 
 ---
 
-## 🔄 Module 2: CRM System (92% COMPLETE)
+## 🔄 Module 2: CRM System (98% COMPLETE)
 
 **Status:** Near Complete
 **Started:** October 5, 2025
 **ETA:** October 15, 2025
 
-### Completed Features (90%):
+### Completed Features (98%):
 
 #### ✅ Tags System (Oct 5)
 - [x] Global tags CRUD
@@ -181,8 +181,8 @@
 
 ### In Progress Features (10%):
 
-#### ✅ Deals & Sales Pipelines (Oct 9-10) - **95% COMPLETE**
-- [x] Database schema (pipelines, pipeline_stages, deals, deal_stage_history)
+#### ✅ Deals & Sales Pipelines (Oct 9-12) - **98% COMPLETE**
+- [x] Database schema (pipelines, pipeline_stages, deals, deal_stage_history, deal_tags junction)
 - [x] Backend API routes (11 pipeline endpoints, 9 deal endpoints)
 - [x] Pipeline management in CRM Settings (create, edit, delete, set default)
 - [x] Stage builder with drag-to-reorder
@@ -197,8 +197,12 @@
 - [x] Deal value tracking per stage
 - [x] Bilingual support (EN/AR)
 - [x] Optimistic updates with rollback
-- [ ] Deal activities timeline (10% - not started)
-- [ ] Advanced deal filtering (0% - not started)
+- [x] **Tags system fully integrated** (Oct 12) - Color-coded badges on cards
+- [x] **Bilingual tags in filters** (Oct 12) - Arabic/English tag names
+- [x] **Group By user names** (Oct 12) - Real user names in columns
+- [x] **Default user filter** (Oct 12) - Auto-filter to logged-in user's deals
+- [x] **Advanced deal filtering** (Oct 12) - 7 filter types (user, tags, probability, value range, dates)
+- [ ] Deal activities timeline (2% - not started)
 
 #### ⏳ Activities & Notes
 - [ ] Activity types (call, meeting, email, task, note)
@@ -356,7 +360,7 @@
 
 ## 📅 Project Timeline
 
-### Completed (October 2-11, 2025):
+### Completed (October 2-12, 2025):
 - **Oct 2:** Module 0 - Foundation complete
 - **Oct 5:** CRM - Tags, Statuses, Lead Sources
 - **Oct 6:** CRM - Contacts phone country code, Companies
@@ -365,6 +369,7 @@
 - **Oct 11 (AM):** Documentation audit - Discovered completed Contacts/Companies frontend
 - **Oct 11 (PM):** Dynamic menu system - Database-driven with bilingual support
 - **Oct 11 (Evening):** Dynamic permissions - Auto-discovery + bilingual labels from database
+- **Oct 12:** CRM - Tags system complete (display, bilingual filters, user names, default user filter)
 
 ### Current Week (Oct 12-18, 2025):
 - **Next Priority:** CRM enhancements (activities, filters) OR WhatsApp migration
@@ -565,14 +570,15 @@ cd Frontend && npm run dev
 
 ---
 
-**Last Updated:** October 11, 2025 (Evening)
+**Last Updated:** October 12, 2025
 **Next Review:** October 15, 2025 (after next module decision)
 
-**Major Updates (Oct 11):**
-- ✅ Dynamic menu system - Bilingual support from database
-- ✅ Dynamic permission system - Auto-discovery with zero-maintenance architecture
-- ✅ Pipelines permissions migration complete
-- **Architecture Achievement:** Single source of truth for all module names and permissions
+**Major Updates (Oct 12):**
+- ✅ Tags displaying on deal cards - Fixed pipelineRoutes.js to attach tags from junction table
+- ✅ Bilingual tags in filters - Arabic/English tag names matching interface language
+- ✅ Group By user names - Real user names (e.g., "Walid Abdallah") instead of generic "user" label
+- ✅ Default user filter - Auto-filter deals to logged-in user on page load (with ability to clear)
+- **UX Achievement:** Professional, personalized, fully polished deals experience!
 
 ---
 

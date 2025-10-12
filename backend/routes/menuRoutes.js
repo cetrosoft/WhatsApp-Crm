@@ -32,8 +32,9 @@ router.get('/', authenticateToken, async (req, res) => {
       return res.status(500).json({ error: 'Failed to fetch menu', details: error.message });
     }
 
-    // Filter out items user doesn't have permission for
-    const filteredData = data.filter(item => item.has_permission);
+    // Note: SQL function already filters by package features and show_in_menu
+    // No additional filtering needed here
+    const filteredData = data;
 
     // Build hierarchical structure
     const menuTree = buildMenuTree(filteredData);

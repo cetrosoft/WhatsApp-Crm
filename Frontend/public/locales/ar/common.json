@@ -590,5 +590,17 @@
   "noDate": "بدون تاريخ",
   "today": "اليوم",
   "older": "أقدم",
-  "noTags": "بدون وسوم"
+  "noTags": "بدون وسوم",
+  "quickAddDeal": "إضافة صفقة سريعة",
+  "searchContactByName": "ابحث عن جهة اتصال بالاسم...",
+  "searching": "جاري البحث",
+  "contactNotFound": "جهة الاتصال غير موجودة",
+  "createNewContact": "إنشاء جهة اتصال جديدة",
+  "expectedRevenue": "الإيرادات المتوقعة",
+  "adding": "جاري الإضافة",
+  "newContactWillBeCreated": "سيتم إنشاء جهة اتصال جديدة بهذه المعلومات",
+  "contactCreated": "تم إنشاء جهة الاتصال بنجاح",
+  "contactPhoneExists": "يوجد جهة اتصال بهذا الرقم بالفعل",
+  "invalidEmail": "يرجى إدخال بريد إلكتروني صحيح",
+  "optional": "اختياري"
 }

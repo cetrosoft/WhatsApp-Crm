@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { dealAPI, pipelineAPI } from '../services/api';
+import { dealAPI, pipelineAPI, contactAPI } from '../services/api';
 import { Plus, Search, Filter, TrendingUp, Grid3x3, ChevronDown } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
@@ -34,7 +34,7 @@ const Deals = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingDeal, setEditingDeal] = useState(null);
   const [filters, setFilters] = useState({
-    assignedTo: null,
+    assignedTo: null, // Will be set to logged-in user on mount
     tags: [],
     probability: null,
     valueMin: null,
@@ -46,6 +46,8 @@ const Deals = () => {
   const [showGroupByDropdown, setShowGroupByDropdown] = useState(false);
   const [groupBySearchTerm, setGroupBySearchTerm] = useState('');
   const groupByDropdownRef = useRef(null);
+  const [quickAddSaving, setQuickAddSaving] = useState(false);
+  const initialFilterSetRef = useRef(false);
 
   // Drag and drop sensors
   const sensors = useSensors(
@@ -83,6 +85,18 @@ const Deals = () => {
       loadDeals();
     }
   }, [selectedPipeline]);
+
+  // Set default filter to logged-in user's deals (only on initial mount)
+  useEffect(() => {
+    if (user && user.id && !initialFilterSetRef.current) {
+      console.log('🔍 [DEBUG] Setting default filter to logged-in user:', user.id);
+      setFilters(prev => ({
+        ...prev,
+        assignedTo: user.id
+      }));
+      initialFilterSetRef.current = true;
+    }
+  }, [user]);
 
   // Click outside to close Group By dropdown
   useEffect(() => {
@@ -204,7 +218,7 @@ const Deals = () => {
           const deal = deals.find(d => d.assigned_to === userId);
           return {
             id: userId,
-            name: deal?.assigned_to_user?.full_name || deal?.assigned_to_user?.email || t('user'),
+            name: deal?.assigned_user?.full_name || deal?.assigned_user?.email || t('user'),
             type: 'user'
           };
         });
@@ -469,12 +483,15 @@ const Deals = () => {
   const loadDeals = async () => {
     try {
       setLoading(true);
-      console.log('🔍 [DEBUG] Loading deals for pipeline:', selectedPipeline.id);
+      console.log('🔍 [FRONTEND] Loading deals for pipeline:', selectedPipeline.id);
       const response = await pipelineAPI.getPipelineDeals(selectedPipeline.id);
-      console.log('🔍 [DEBUG] Deals response:', response.deals?.length, 'deals');
+      console.log('✅ [FRONTEND] Deals response:', response.deals?.length, 'deals');
+      console.log('📋 [FRONTEND] First deal sample:', response.deals?.[0]);
+      console.log('🏷️ [FRONTEND] First deal tags:', response.deals?.[0]?.tags);
+      console.log('🏷️ [FRONTEND] First deal tag_details:', response.deals?.[0]?.tag_details);
       setDeals(response.deals || []);
     } catch (error) {
-      console.error('❌ [DEBUG] Error loading deals:', error);
+      console.error('❌ [FRONTEND] Error loading deals:', error);
       toast.error(t('failedToLoad', { resource: t('deals') }));
     } finally {
       setLoading(false);
@@ -545,8 +562,12 @@ const Deals = () => {
       return;
     }
 
-    // Case 2: Moving between stages (dropped on stage droppable zone)
-    const newStageId = over.id;
+    // Case 2: Moving between stages (dropped on stage droppable zone OR on a card in different stage)
+    // If dropped on a card (overDeal exists), use that card's stage_id
+    // Otherwise, use over.id directly (which is the stage's droppable zone id)
+    const newStageId = overDeal && overDeal.stage_id !== activeDeal.stage_id
+      ? overDeal.stage_id  // Dropped on a card in a different stage
+      : over.id;            // Dropped on empty stage zone
 
     if (activeDeal.stage_id === newStageId) return;
 
@@ -707,6 +728,85 @@ const Deals = () => {
    */
   const handleDeleteDeal = (dealId) => {
     setDeals(prev => prev.filter(d => d.id !== dealId));
+  };
+
+  /**
+   * Handle contact search for quick-add
+   * Returns array of matching contacts
+   */
+  const handleContactSearch = async (query) => {
+    try {
+      const response = await contactAPI.getContacts({ search: query, limit: 10 });
+      return response.data || [];
+    } catch (error) {
+      console.error('❌ [DEBUG] Error searching contacts:', error);
+      return [];
+    }
+  };
+
+  /**
+   * Handle quick add deal from inline form
+   */
+  const handleQuickAddDeal = async (formData) => {
+    try {
+      setQuickAddSaving(true);
+      console.log('🔍 [DEBUG] Quick add deal:', formData);
+
+      let contactId = formData.contactId;
+
+      // Create new contact if needed
+      if (formData.createContact && !contactId) {
+        console.log('📝 [DEBUG] Creating new contact:', formData.contactName);
+
+        try {
+          const contactResponse = await contactAPI.createContact({
+            name: formData.contactName,
+            email: formData.email,
+            phone: formData.phone,
+            phone_country_code: formData.phone_country_code,
+          });
+
+          contactId = contactResponse.data.id;
+          console.log('✅ [DEBUG] Contact created:', contactId);
+          toast.success(t('contactCreated'));
+        } catch (contactError) {
+          console.error('❌ [DEBUG] Error creating contact:', contactError);
+
+          // Check if it's a duplicate phone error
+          if (contactError.response?.status === 409) {
+            toast.error(t('contactPhoneExists'));
+          } else {
+            toast.error(t('failedToCreate', { resource: t('contact') }));
+          }
+          return;
+        }
+      }
+
+      // Create deal
+      const dealData = {
+        title: formData.title,
+        value: formData.value,
+        currency: 'SAR',
+        pipeline_id: selectedPipeline.id,
+        stage_id: formData.stageId,
+        contact_id: contactId,
+        probability: 50,
+      };
+
+      console.log('📝 [DEBUG] Creating deal:', dealData);
+      await dealAPI.createDeal(dealData);
+      console.log('✅ [DEBUG] Deal created successfully');
+
+      toast.success(t('dealCreated'));
+
+      // Reload deals to show new one
+      loadDeals();
+    } catch (error) {
+      console.error('❌ [DEBUG] Error creating deal:', error);
+      toast.error(t('failedToCreate', { resource: t('deal') }));
+    } finally {
+      setQuickAddSaving(false);
+    }
   };
 
   // Debug state
@@ -918,9 +1018,12 @@ const Deals = () => {
                       canEdit={canEdit}
                       canDelete={canDelete}
                       onAddDeal={handleAddDeal}
+                      onQuickAddDeal={handleQuickAddDeal}
+                      onContactSearch={handleContactSearch}
                       onEditDeal={handleEditDeal}
                       onDeleteDeal={handleDeleteDeal}
                       groupBy={groupBy}
+                      quickAddSaving={quickAddSaving}
                     />
                   );
                 })}

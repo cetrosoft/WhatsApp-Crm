@@ -3,16 +3,33 @@
  * Stage column for drag-and-drop deals
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { Plus, DollarSign } from 'lucide-react';
 import DealCard from '../DealCard';
+import QuickAddDealCard from './QuickAddDealCard';
 
-const KanbanColumn = ({ stage, deals, totalValue, canEdit, canDelete, onAddDeal, onEditDeal, onDeleteDeal, groupBy }) => {
+const KanbanColumn = ({
+  stage,
+  deals,
+  totalValue,
+  canEdit,
+  canDelete,
+  onAddDeal,
+  onQuickAddDeal,
+  onContactSearch,
+  onEditDeal,
+  onDeleteDeal,
+  groupBy,
+  quickAddSaving
+}) => {
   const { t, i18n } = useTranslation(['common']);
   const isRTL = i18n.language === 'ar';
+
+  // Quick add state
+  const [showQuickAdd, setShowQuickAdd] = useState(false);
 
   console.log('🔍 [KanbanColumn] Rendering:', {
     stageName: stage.name,
@@ -72,9 +89,9 @@ const KanbanColumn = ({ stage, deals, totalValue, canEdit, canDelete, onAddDeal,
             </span>
             {canEdit && (
               <button
-                onClick={onAddDeal}
+                onClick={() => setShowQuickAdd(true)}
                 className="w-7 h-7 flex items-center justify-center rounded-full bg-white border border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-indigo-600 hover:border-indigo-300 transition-all shadow-sm"
-                title={t('addDeal')}
+                title={t('quickAddDeal')}
               >
                 <Plus className="w-4 h-4" />
               </button>
@@ -94,33 +111,50 @@ const KanbanColumn = ({ stage, deals, totalValue, canEdit, canDelete, onAddDeal,
       {/* Drop Zone */}
       <div
         ref={setNodeRef}
-        className={`min-h-[400px] rounded-lg p-3 transition-all duration-200 ${
+        className={`flex-1 min-h-[500px] rounded-lg p-3 transition-all duration-200 ${
           isOver
             ? 'bg-indigo-50 border-2 border-dashed border-indigo-400 shadow-inner'
             : 'bg-gray-50 border-2 border-transparent'
         }`}
       >
-        {deals.length === 0 ? (
+        {/* Quick Add Form */}
+        {showQuickAdd && (
+          <QuickAddDealCard
+            stageId={stage.id}
+            stageName={stage.name}
+            onSubmit={(data) => {
+              onQuickAddDeal(data);
+              setShowQuickAdd(false);
+            }}
+            onCancel={() => setShowQuickAdd(false)}
+            onContactSearch={onContactSearch}
+            saving={quickAddSaving}
+          />
+        )}
+
+        {deals.length === 0 && !showQuickAdd ? (
           <div className="flex items-center justify-center h-32 text-center">
             <p className="text-sm text-gray-400">
               {isOver ? t('dropHere') : t('noDeals')}
             </p>
           </div>
-        ) : (
-          <SortableContext items={deals.map(d => d.id)} strategy={verticalListSortingStrategy}>
-            {deals.map((deal) => (
-              <DealCard
-                key={deal.id}
-                deal={deal}
-                canEdit={canEdit}
-                canDelete={canDelete}
-                onEdit={onEditDeal}
-                onDelete={onDeleteDeal}
-                groupBy={groupBy}
-              />
-            ))}
-          </SortableContext>
-        )}
+        ) : deals.length > 0 ? (
+          <div className="space-y-0">
+            <SortableContext items={deals.map(d => d.id)} strategy={verticalListSortingStrategy}>
+              {deals.map((deal) => (
+                <DealCard
+                  key={deal.id}
+                  deal={deal}
+                  canEdit={canEdit}
+                  canDelete={canDelete}
+                  onEdit={onEditDeal}
+                  onDelete={onDeleteDeal}
+                  groupBy={groupBy}
+                />
+              ))}
+            </SortableContext>
+          </div>
+        ) : null}
       </div>
     </div>
   );
