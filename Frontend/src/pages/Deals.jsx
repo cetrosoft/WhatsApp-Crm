@@ -1,21 +1,22 @@
 /**
- * Deals Page (Kanban Board)
+ * Deals Page (Kanban Board) - Refactored
  * Manage sales deals with drag-and-drop pipeline view
  */
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { dealAPI, pipelineAPI, contactAPI } from '../services/api';
-import { Plus, Search, Filter, TrendingUp, Grid3x3, ChevronDown } from 'lucide-react';
+import { Plus, Search, Filter, TrendingUp, Grid3x3, ChevronDown, DollarSign, Target, LayoutGrid, List } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
 import { hasPermission } from '../utils/permissionUtils';
 import { DndContext, DragOverlay, closestCorners, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
-import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
+import { arrayMove } from '@dnd-kit/sortable';
 import KanbanColumn from '../components/Deals/KanbanColumn';
 import DealCard from '../components/DealCard';
 import DealModal from '../components/Deals/DealModal';
 import FilterPanel from '../components/Deals/FilterPanel';
+import DealListView from '../components/Deals/DealListView';
 
 const Deals = () => {
   const { t, i18n } = useTranslation(['common']);
@@ -33,8 +34,9 @@ const Deals = () => {
   const [activeDeal, setActiveDeal] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [editingDeal, setEditingDeal] = useState(null);
+  const [viewMode, setViewMode] = useState('cards'); // 'cards' | 'list'
   const [filters, setFilters] = useState({
-    assignedTo: null, // Will be set to logged-in user on mount
+    assignedTo: null,
     tags: [],
     probability: null,
     valueMin: null,
@@ -42,7 +44,7 @@ const Deals = () => {
     expectedClosePeriod: null,
     createdPeriod: null,
   });
-  const [groupBy, setGroupBy] = useState('stage'); // stage, assignedTo, tags, expectedCloseDate, createdDate, probability
+  const [groupBy, setGroupBy] = useState('stage');
   const [showGroupByDropdown, setShowGroupByDropdown] = useState(false);
   const [groupBySearchTerm, setGroupBySearchTerm] = useState('');
   const groupByDropdownRef = useRef(null);
@@ -58,38 +60,15 @@ const Deals = () => {
     })
   );
 
-  // Check permission
+  // Check permissions
   const canView = hasPermission(user, 'deals.view');
   const canCreate = hasPermission(user, 'deals.create');
   const canEdit = hasPermission(user, 'deals.edit');
   const canDelete = hasPermission(user, 'deals.delete');
 
-  // Debug permissions
-  console.log('🔍 [DEBUG] User permissions:', {
-    canView,
-    canCreate,
-    canEdit,
-    canDelete,
-    user: user?.email
-  });
-
-  useEffect(() => {
-    console.log('🔍 [DEBUG] useEffect triggered, canView:', canView);
-    if (canView) {
-      loadPipelines();
-    }
-  }, [canView]);
-
-  useEffect(() => {
-    if (selectedPipeline) {
-      loadDeals();
-    }
-  }, [selectedPipeline]);
-
   // Set default filter to logged-in user's deals (only on initial mount)
   useEffect(() => {
     if (user && user.id && !initialFilterSetRef.current) {
-      console.log('🔍 [DEBUG] Setting default filter to logged-in user:', user.id);
       setFilters(prev => ({
         ...prev,
         assignedTo: user.id
@@ -112,6 +91,20 @@ const Deals = () => {
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
   }, [showGroupByDropdown]);
+
+  // Load pipelines on mount
+  useEffect(() => {
+    if (canView) {
+      loadPipelines();
+    }
+  }, [canView]);
+
+  // Load deals when pipeline changes
+  useEffect(() => {
+    if (selectedPipeline) {
+      loadDeals();
+    }
+  }, [selectedPipeline]);
 
   /**
    * Get Group By options with labels
@@ -161,27 +154,26 @@ const Deals = () => {
       const year = parseInt(parts[1]);
       const monthIndex = parseInt(parts[2]);
       from = new Date(year, monthIndex, 1);
-      // Get last day of month
       to = new Date(year, monthIndex + 1, 0);
       return { from, to };
     }
 
     switch (period) {
       case 'q1':
-        from = new Date(currentYear, 0, 1); // Jan 1
-        to = new Date(currentYear, 2, 31); // Mar 31
+        from = new Date(currentYear, 0, 1);
+        to = new Date(currentYear, 2, 31);
         break;
       case 'q2':
-        from = new Date(currentYear, 3, 1); // Apr 1
-        to = new Date(currentYear, 5, 30); // Jun 30
+        from = new Date(currentYear, 3, 1);
+        to = new Date(currentYear, 5, 30);
         break;
       case 'q3':
-        from = new Date(currentYear, 6, 1); // Jul 1
-        to = new Date(currentYear, 8, 30); // Sep 30
+        from = new Date(currentYear, 6, 1);
+        to = new Date(currentYear, 8, 30);
         break;
       case 'q4':
-        from = new Date(currentYear, 9, 1); // Oct 1
-        to = new Date(currentYear, 11, 31); // Dec 31
+        from = new Date(currentYear, 9, 1);
+        to = new Date(currentYear, 11, 31);
         break;
       case 'thisYear':
         from = new Date(currentYear, 0, 1);
@@ -212,7 +204,6 @@ const Deals = () => {
         }));
 
       case 'assignedTo':
-        // Get unique users from deals
         const users = [...new Set(deals.map(d => d.assigned_to).filter(Boolean))];
         const userColumns = users.map(userId => {
           const deal = deals.find(d => d.assigned_to === userId);
@@ -222,7 +213,6 @@ const Deals = () => {
             type: 'user'
           };
         });
-        // Add "Unassigned" column
         userColumns.push({
           id: 'unassigned',
           name: t('unassigned'),
@@ -231,7 +221,6 @@ const Deals = () => {
         return userColumns;
 
       case 'tags':
-        // Get unique tags from deals (filter out null/undefined values)
         const tagIds = [...new Set(
           deals.flatMap(d => (d.tags || []).filter(Boolean))
         )];
@@ -247,7 +236,6 @@ const Deals = () => {
           };
         });
 
-        // Add "No Tags" column
         tagColumns.push({
           id: 'notags',
           name: t('noTags'),
@@ -371,7 +359,6 @@ const Deals = () => {
         if (groupId === 'notags') {
           return filteredDeals.filter(deal => !deal.tags || deal.tags.length === 0);
         }
-        // Show deal only in its FIRST tag's column (to avoid duplicates)
         return filteredDeals.filter(deal => {
           const firstTag = (deal.tags || []).filter(Boolean)[0];
           return firstTag === groupId;
@@ -449,30 +436,36 @@ const Deals = () => {
   };
 
   /**
+   * Calculate overall statistics
+   */
+  const getStats = () => {
+    const totalValue = deals.reduce((sum, deal) => sum + (parseFloat(deal.value) || 0), 0);
+    const avgDealSize = deals.length > 0 ? totalValue / deals.length : 0;
+    const weightedValue = deals.reduce((sum, deal) => {
+      const value = parseFloat(deal.value) || 0;
+      const probability = parseInt(deal.probability) || 0;
+      return sum + (value * probability / 100);
+    }, 0);
+
+    return { totalValue, avgDealSize, weightedValue };
+  };
+
+  /**
    * Load all pipelines
    */
   const loadPipelines = async () => {
     try {
-      console.log('🔍 [DEBUG] Fetching pipelines...');
       const response = await pipelineAPI.getPipelines();
-      console.log('🔍 [DEBUG] API Response:', response);
-
       const pipelineList = response.pipelines || [];
-      console.log('🔍 [DEBUG] Pipelines found:', pipelineList.length, pipelineList);
-
       setPipelines(pipelineList);
 
-      // Auto-select default or first pipeline
       if (pipelineList.length > 0) {
         const defaultPipeline = pipelineList.find(p => p.is_default) || pipelineList[0];
-        console.log('🔍 [DEBUG] Selected pipeline:', defaultPipeline.name, 'Stages:', defaultPipeline.stages?.length);
         setSelectedPipeline(defaultPipeline);
         setStages(defaultPipeline.stages || []);
-      } else {
-        console.warn('⚠️ [DEBUG] No pipelines found! User may need to create one.');
       }
     } catch (error) {
-      console.error('❌ [DEBUG] Error loading pipelines:', error);
+      console.error('Error loading pipelines:', error);
       toast.error(t('failedToLoad', { resource: t('pipelines') }));
     }
   };
@@ -483,15 +476,10 @@ const Deals = () => {
   const loadDeals = async () => {
     try {
       setLoading(true);
-      console.log('🔍 [FRONTEND] Loading deals for pipeline:', selectedPipeline.id);
       const response = await pipelineAPI.getPipelineDeals(selectedPipeline.id);
-      console.log('✅ [FRONTEND] Deals response:', response.deals?.length, 'deals');
-      console.log('📋 [FRONTEND] First deal sample:', response.deals?.[0]);
-      console.log('🏷️ [FRONTEND] First deal tags:', response.deals?.[0]?.tags);
-      console.log('🏷️ [FRONTEND] First deal tag_details:', response.deals?.[0]?.tag_details);
       setDeals(response.deals || []);
     } catch (error) {
-      console.error('❌ [FRONTEND] Error loading deals:', error);
+      console.error('Error loading deals:', error);
       toast.error(t('failedToLoad', { resource: t('deals') }));
     } finally {
       setLoading(false);
@@ -508,12 +496,10 @@ const Deals = () => {
   };
 
   /**
-   * Handle deal drag over
-   * NOTE: No state updates here - just visual feedback via KanbanColumn isOver
+   * Handle deal drag over (no state updates - just visual feedback)
    */
   const handleDragOver = (event) => {
-    // Removed optimistic updates to prevent card disappearing during drag
-    // Visual feedback is handled by KanbanColumn's isOver state
+    // Visual feedback handled by KanbanColumn's isOver state
   };
 
   /**
@@ -531,52 +517,39 @@ const Deals = () => {
 
     if (!activeDeal) return;
 
-    // Case 1: Reordering within the same stage (dropped on another deal)
+    // Case 1: Reordering within the same stage
     if (overDeal && activeDeal.stage_id === overDeal.stage_id) {
-      console.log('🔄 [DEBUG] Reordering within stage:', activeDeal.stage_id);
-
       const oldIndex = deals.findIndex(d => d.id === active.id);
       const newIndex = deals.findIndex(d => d.id === over.id);
 
       if (oldIndex === newIndex) return;
 
-      // Optimistic update - reorder immediately
       const reorderedDeals = arrayMove(deals, oldIndex, newIndex);
       setDeals(reorderedDeals);
 
-      // Calculate new stage_order for the moved deal
       const stageDeals = reorderedDeals.filter(d => d.stage_id === activeDeal.stage_id);
       const newStageOrder = stageDeals.findIndex(d => d.id === active.id);
 
       try {
         await dealAPI.updateDeal(active.id, { stage_order: newStageOrder });
-        console.log('✅ [DEBUG] Deal reordered successfully, new stage_order:', newStageOrder);
       } catch (error) {
-        console.error('❌ [DEBUG] Error reordering deal:', error);
+        console.error('Error reordering deal:', error);
         toast.error(t('failedToUpdate', { resource: t('deal') }));
-
-        // Rollback - restore original order
         setDeals(deals);
       }
 
       return;
     }
 
-    // Case 2: Moving between stages (dropped on stage droppable zone OR on a card in different stage)
-    // If dropped on a card (overDeal exists), use that card's stage_id
-    // Otherwise, use over.id directly (which is the stage's droppable zone id)
+    // Case 2: Moving between stages
     const newStageId = overDeal && overDeal.stage_id !== activeDeal.stage_id
-      ? overDeal.stage_id  // Dropped on a card in a different stage
-      : over.id;            // Dropped on empty stage zone
+      ? overDeal.stage_id
+      : over.id;
 
     if (activeDeal.stage_id === newStageId) return;
 
-    console.log('➡️ [DEBUG] Moving between stages:', activeDeal.stage_id, '→', newStageId);
-
-    // Save original state for rollback
     const originalStageId = activeDeal.stage_id;
 
-    // Optimistic update - move card immediately for smooth UX
     setDeals(prev => prev.map(d =>
       d.id === active.id ? { ...d, stage_id: newStageId } : d
     ));
@@ -585,10 +558,9 @@ const Deals = () => {
       await dealAPI.moveDealToStage(active.id, newStageId);
       toast.success(t('dealMoved'));
     } catch (error) {
-      console.error('❌ [DEBUG] Error moving deal:', error);
+      console.error('Error moving deal:', error);
       toast.error(t('failedToUpdate', { resource: t('deal') }));
 
-      // Rollback - move card back to original stage
       setDeals(prev => prev.map(d =>
         d.id === active.id ? { ...d, stage_id: originalStageId } : d
       ));
@@ -596,12 +568,75 @@ const Deals = () => {
   };
 
   /**
-   * Get deals for a specific stage
+   * Handle pipeline change
    */
-  const getDealsByStage = (stageId) => {
-    return deals.filter(deal => {
-      const matchesStage = deal.stage_id === stageId;
+  const handlePipelineChange = (pipeline) => {
+    setSelectedPipeline(pipeline);
+    setStages(pipeline.stages || []);
+    setDeals([]);
+  };
 
+  /**
+   * Handle add deal
+   */
+  const handleAddDeal = () => {
+    if (!canCreate) {
+      toast.error(t('insufficientPermissions'));
+      return;
+    }
+
+    setEditingDeal(null);
+    setShowModal(true);
+  };
+
+  /**
+   * Handle edit deal
+   */
+  const handleEditDeal = (deal) => {
+    if (!canEdit) {
+      toast.error(t('insufficientPermissions'));
+      return;
+    }
+
+    setEditingDeal(deal);
+    setShowModal(true);
+  };
+
+  /**
+   * Handle save deal (create/update)
+   */
+  const handleSaveDeal = () => {
+    setShowModal(false);
+    setEditingDeal(null);
+    loadDeals();
+  };
+
+  /**
+   * Handle delete deal
+   */
+  const handleDeleteDeal = async (deal) => {
+    if (!canDelete) {
+      toast.error(t('insufficientPermissions'));
+      return;
+    }
+
+    if (!confirm(t('confirmDelete', { resource: deal.title }))) return;
+
+    try {
+      await dealAPI.deleteDeal(deal.id);
+      toast.success(t('deleted', { resource: t('deal') }));
+      setDeals(prev => prev.filter(d => d.id !== deal.id));
+    } catch (error) {
+      console.error('Error deleting deal:', error);
+      toast.error(t('failedToDelete', { resource: t('deal') }));
+    }
+  };
+
+  /**
+   * Get all filtered deals (used by list view)
+   */
+  const getFilteredDeals = () => {
+    return deals.filter(deal => {
       // Search filter
       const matchesSearch = searchTerm
         ? deal.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -614,7 +649,7 @@ const Deals = () => {
         ? deal.assigned_to === filters.assignedTo
         : true;
 
-      // Tags filter (deal must have at least one of the selected tags)
+      // Tags filter
       const matchesTags = filters.tags && filters.tags.length > 0
         ? deal.tags?.some(tagId => filters.tags.includes(tagId))
         : true;
@@ -656,7 +691,6 @@ const Deals = () => {
       })();
 
       return (
-        matchesStage &&
         matchesSearch &&
         matchesAssignedTo &&
         matchesTags &&
@@ -670,76 +704,14 @@ const Deals = () => {
   };
 
   /**
-   * Calculate stage total value
-   */
-  const getStageTotal = (stageId) => {
-    return getDealsByStage(stageId).reduce((sum, deal) => sum + (deal.value || 0), 0);
-  };
-
-  /**
-   * Handle pipeline change
-   */
-  const handlePipelineChange = (pipeline) => {
-    setSelectedPipeline(pipeline);
-    setStages(pipeline.stages || []);
-    setDeals([]);
-  };
-
-  /**
-   * Handle add deal
-   */
-  const handleAddDeal = () => {
-    console.log('🔍 [DEBUG] Add Deal clicked. canCreate:', canCreate);
-    if (!canCreate) {
-      console.warn('⚠️ [DEBUG] Insufficient permissions to create deal');
-      toast.error(t('insufficientPermissions'));
-      return;
-    }
-
-    setEditingDeal(null);
-    setShowModal(true);
-  };
-
-  /**
-   * Handle edit deal
-   */
-  const handleEditDeal = (deal) => {
-    console.log('🔍 [DEBUG] Edit Deal clicked. Deal:', deal.title);
-    if (!canEdit) {
-      toast.error(t('insufficientPermissions'));
-      return;
-    }
-
-    setEditingDeal(deal);
-    setShowModal(true);
-  };
-
-  /**
-   * Handle save deal (create/update)
-   */
-  const handleSaveDeal = () => {
-    setShowModal(false);
-    setEditingDeal(null);
-    loadDeals();
-  };
-
-  /**
-   * Handle delete deal
-   */
-  const handleDeleteDeal = (dealId) => {
-    setDeals(prev => prev.filter(d => d.id !== dealId));
-  };
-
-  /**
    * Handle contact search for quick-add
-   * Returns array of matching contacts
    */
   const handleContactSearch = async (query) => {
     try {
       const response = await contactAPI.getContacts({ search: query, limit: 10 });
       return response.data || [];
     } catch (error) {
-      console.error('❌ [DEBUG] Error searching contacts:', error);
+      console.error('Error searching contacts:', error);
       return [];
     }
   };
@@ -750,14 +722,11 @@ const Deals = () => {
   const handleQuickAddDeal = async (formData) => {
     try {
       setQuickAddSaving(true);
-      console.log('🔍 [DEBUG] Quick add deal:', formData);
 
       let contactId = formData.contactId;
 
       // Create new contact if needed
       if (formData.createContact && !contactId) {
-        console.log('📝 [DEBUG] Creating new contact:', formData.contactName);
-
         try {
           const contactResponse = await contactAPI.createContact({
             name: formData.contactName,
@@ -767,12 +736,8 @@ const Deals = () => {
           });
 
           contactId = contactResponse.data.id;
-          console.log('✅ [DEBUG] Contact created:', contactId);
           toast.success(t('contactCreated'));
         } catch (contactError) {
-          console.error('❌ [DEBUG] Error creating contact:', contactError);
-
-          // Check if it's a duplicate phone error
           if (contactError.response?.status === 409) {
             toast.error(t('contactPhoneExists'));
           } else {
@@ -793,34 +758,21 @@ const Deals = () => {
         probability: 50,
       };
 
-      console.log('📝 [DEBUG] Creating deal:', dealData);
       await dealAPI.createDeal(dealData);
-      console.log('✅ [DEBUG] Deal created successfully');
-
       toast.success(t('dealCreated'));
-
-      // Reload deals to show new one
       loadDeals();
     } catch (error) {
-      console.error('❌ [DEBUG] Error creating deal:', error);
+      console.error('Error creating deal:', error);
       toast.error(t('failedToCreate', { resource: t('deal') }));
     } finally {
       setQuickAddSaving(false);
     }
   };
 
-  // Debug state
-  console.log('🔍 [DEBUG] Current state:', {
-    pipelines: pipelines.length,
-    stages: stages.length,
-    deals: deals.length,
-    selectedPipeline: selectedPipeline?.name,
-    loading
-  });
+  const stats = getStats();
 
   // Permission guard
   if (!canView) {
-    console.warn('⚠️ [DEBUG] No view permission - showing permission denied page');
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
@@ -833,15 +785,12 @@ const Deals = () => {
   }
 
   if (loading && deals.length === 0) {
-    console.log('🔍 [DEBUG] Showing loading spinner');
     return (
       <div className="flex justify-center py-12">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
       </div>
     );
   }
-
-  console.log('🔍 [DEBUG] Rendering Deals page with stages:', stages.length);
 
   return (
     <div className="flex flex-col" style={{ minHeight: 'calc(100vh - 120px)' }}>
@@ -861,6 +810,32 @@ const Deals = () => {
           </div>
 
           <div className="flex items-center gap-2">
+            {/* View Toggle */}
+            <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden">
+              <button
+                onClick={() => setViewMode('cards')}
+                className={`px-3 py-2 text-sm transition ${
+                  viewMode === 'cards'
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-white text-gray-600 hover:bg-gray-50'
+                }`}
+                title={t('cardView')}
+              >
+                <LayoutGrid className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                className={`px-3 py-2 text-sm transition ${
+                  viewMode === 'list'
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-white text-gray-600 hover:bg-gray-50'
+                }`}
+                title={t('listView')}
+              >
+                <List className="w-4 h-4" />
+              </button>
+            </div>
+
             {canCreate && (
               <button
                 onClick={handleAddDeal}
@@ -870,6 +845,57 @@ const Deals = () => {
                 <span className="hidden sm:inline">{t('addDeal')}</span>
               </button>
             )}
+          </div>
+        </div>
+
+        {/* Stats Row */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
+          <div className="bg-white border border-gray-200 p-3 rounded-lg">
+            <div className="flex items-center gap-2">
+              <div className="p-2 bg-blue-100 rounded">
+                <Target className="w-4 h-4 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-600">{t('deals')}</p>
+                <p className="text-lg font-bold text-gray-900">{deals.length}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white border border-gray-200 p-3 rounded-lg">
+            <div className="flex items-center gap-2">
+              <div className="p-2 bg-green-100 rounded">
+                <DollarSign className="w-4 h-4 text-green-600" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-600">{t('totalValue')}</p>
+                <p className="text-lg font-bold text-gray-900">${stats.totalValue.toLocaleString()}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white border border-gray-200 p-3 rounded-lg">
+            <div className="flex items-center gap-2">
+              <div className="p-2 bg-purple-100 rounded">
+                <TrendingUp className="w-4 h-4 text-purple-600" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-600">{t('avgDealSize')}</p>
+                <p className="text-lg font-bold text-gray-900">${stats.avgDealSize.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white border border-gray-200 p-3 rounded-lg">
+            <div className="flex items-center gap-2">
+              <div className="p-2 bg-orange-100 rounded">
+                <DollarSign className="w-4 h-4 text-orange-600" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-600">{t('weightedValue')}</p>
+                <p className="text-lg font-bold text-gray-900">${stats.weightedValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -893,67 +919,67 @@ const Deals = () => {
             </select>
           )}
 
-          {/* Group By Selector - Searchable */}
-          <div className="relative" ref={groupByDropdownRef}>
-            <button
-              onClick={() => setShowGroupByDropdown(!showGroupByDropdown)}
-              className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition bg-white min-w-[220px] justify-between"
-            >
-              <div className="flex items-center gap-2">
-                <Grid3x3 className="w-4 h-4 text-gray-500" />
-                <span className="text-sm">{getSelectedGroupByLabel()}</span>
-              </div>
-              <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showGroupByDropdown ? 'rotate-180' : ''}`} />
-            </button>
+          {/* Group By Selector - Only show in cards view */}
+          {viewMode === 'cards' && (
+            <div className="relative" ref={groupByDropdownRef}>
+              <button
+                onClick={() => setShowGroupByDropdown(!showGroupByDropdown)}
+                className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition bg-white min-w-[220px] justify-between"
+              >
+                <div className="flex items-center gap-2">
+                  <Grid3x3 className="w-4 h-4 text-gray-500" />
+                  <span className="text-sm">{getSelectedGroupByLabel()}</span>
+                </div>
+                <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showGroupByDropdown ? 'rotate-180' : ''}`} />
+              </button>
 
-            {showGroupByDropdown && (
-              <div className={`absolute top-full mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg z-50 ${isRTL ? 'left-0' : 'right-0'}`}>
-                {/* Search Box */}
-                <div className="p-2 border-b border-gray-200">
-                  <div className="relative">
-                    <Search className={`absolute top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 ${isRTL ? 'right-2' : 'left-2'}`} />
-                    <input
-                      type="text"
-                      value={groupBySearchTerm}
-                      onChange={(e) => setGroupBySearchTerm(e.target.value)}
-                      placeholder={t('search')}
-                      className={`w-full text-xs py-1.5 border border-gray-200 rounded focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 ${isRTL ? 'pr-7 pl-2' : 'pl-7 pr-2'}`}
-                      autoFocus
-                    />
+              {showGroupByDropdown && (
+                <div className={`absolute top-full mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg z-50 ${isRTL ? 'left-0' : 'right-0'}`}>
+                  <div className="p-2 border-b border-gray-200">
+                    <div className="relative">
+                      <Search className={`absolute top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 ${isRTL ? 'right-2' : 'left-2'}`} />
+                      <input
+                        type="text"
+                        value={groupBySearchTerm}
+                        onChange={(e) => setGroupBySearchTerm(e.target.value)}
+                        placeholder={t('search')}
+                        className={`w-full text-xs py-1.5 border border-gray-200 rounded focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 ${isRTL ? 'pr-7 pl-2' : 'pl-7 pr-2'}`}
+                        autoFocus
+                      />
+                    </div>
+                  </div>
+
+                  <div className="max-h-64 overflow-y-auto">
+                    {getFilteredGroupByOptions().length === 0 ? (
+                      <div className="px-3 py-2 text-xs text-gray-500 text-center">
+                        {t('noResults')}
+                      </div>
+                    ) : (
+                      getFilteredGroupByOptions().map(option => (
+                        <button
+                          key={option.value}
+                          onClick={() => {
+                            setGroupBy(option.value);
+                            setShowGroupByDropdown(false);
+                            setGroupBySearchTerm('');
+                          }}
+                          className={`w-full px-3 py-2 text-xs text-left hover:bg-gray-50 flex items-center gap-2 ${
+                            groupBy === option.value ? 'bg-indigo-50 text-indigo-600 font-medium' : 'text-gray-700'
+                          }`}
+                        >
+                          <span>{option.icon}</span>
+                          <span>{option.label}</span>
+                          {groupBy === option.value && (
+                            <span className={`${isRTL ? 'mr-auto' : 'ml-auto'} text-indigo-600`}>✓</span>
+                          )}
+                        </button>
+                      ))
+                    )}
                   </div>
                 </div>
-
-                {/* Options List */}
-                <div className="max-h-64 overflow-y-auto">
-                  {getFilteredGroupByOptions().length === 0 ? (
-                    <div className="px-3 py-2 text-xs text-gray-500 text-center">
-                      {t('noResults')}
-                    </div>
-                  ) : (
-                    getFilteredGroupByOptions().map(option => (
-                      <button
-                        key={option.value}
-                        onClick={() => {
-                          setGroupBy(option.value);
-                          setShowGroupByDropdown(false);
-                          setGroupBySearchTerm('');
-                        }}
-                        className={`w-full px-3 py-2 text-xs text-left hover:bg-gray-50 flex items-center gap-2 ${
-                          groupBy === option.value ? 'bg-indigo-50 text-indigo-600 font-medium' : 'text-gray-700'
-                        }`}
-                      >
-                        <span>{option.icon}</span>
-                        <span>{option.label}</span>
-                        {groupBy === option.value && (
-                          <span className={`${isRTL ? 'mr-auto' : 'ml-auto'} text-indigo-600`}>✓</span>
-                        )}
-                      </button>
-                    ))
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
 
           {/* Search */}
           <div className="flex-1 relative">
@@ -985,31 +1011,41 @@ const Deals = () => {
         />
       </div>
 
-      {/* Kanban Board */}
-      <div className="flex-1 overflow-x-auto overflow-y-hidden bg-gray-50" style={{ minHeight: '600px' }}>
-        {stages.length === 0 && groupBy === 'stage' ? (
-          <div className="flex items-center justify-center h-full">
-            <div className="text-center">
-              <div className="text-6xl mb-4">📋</div>
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">{t('noStages')}</h2>
-              <p className="text-gray-600 mb-4">{t('addFirstStage')}</p>
-            </div>
+      {/* Main Content Area */}
+      <div className="flex-1 overflow-x-auto overflow-y-auto bg-gray-50" style={{ minHeight: '600px' }}>
+        {viewMode === 'list' ? (
+          /* List View */
+          <div className="p-6">
+            <DealListView
+              deals={getFilteredDeals()}
+              stages={stages}
+              tags={[]}
+              onEdit={handleEditDeal}
+              onDelete={handleDeleteDeal}
+              deletingId={null}
+            />
           </div>
         ) : (
+          /* Kanban Board View */
           <>
-            {console.log('🔍 [DEBUG] Rendering Kanban board, groupBy:', groupBy)}
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCorners}
-              onDragStart={handleDragStart}
-              onDragOver={handleDragOver}
-              onDragEnd={handleDragEnd}
-            >
-              <div className="flex gap-4 p-6 h-full">
-                {console.log('🔍 [DEBUG] About to map grouped columns')}
-                {getGroupedColumns().map((column) => {
-                  console.log('🔍 [DEBUG] Mapping column:', column.name, column.id);
-                  return (
+            {stages.length === 0 && groupBy === 'stage' ? (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center">
+                  <div className="text-6xl mb-4">📋</div>
+                  <h2 className="text-xl font-semibold text-gray-900 mb-2">{t('noStages')}</h2>
+                  <p className="text-gray-600 mb-4">{t('addFirstStage')}</p>
+                </div>
+              </div>
+            ) : (
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCorners}
+                onDragStart={handleDragStart}
+                onDragOver={handleDragOver}
+                onDragEnd={handleDragEnd}
+              >
+                <div className="flex gap-4 p-6 h-full">
+                  {getGroupedColumns().map((column) => (
                     <KanbanColumn
                       key={column.id}
                       stage={column}
@@ -1025,24 +1061,24 @@ const Deals = () => {
                       groupBy={groupBy}
                       quickAddSaving={quickAddSaving}
                     />
-                  );
-                })}
-              </div>
+                  ))}
+                </div>
 
-              <DragOverlay>
-                {activeDeal ? (
-                  <div
-                    style={{
-                      transform: 'rotate(3deg) scale(1.05)',
-                      cursor: 'grabbing',
-                    }}
-                    className="shadow-2xl"
-                  >
-                    <DealCard deal={activeDeal} canEdit={false} canDelete={false} groupBy={groupBy} />
-                  </div>
-                ) : null}
-              </DragOverlay>
-            </DndContext>
+                <DragOverlay>
+                  {activeDeal ? (
+                    <div
+                      style={{
+                        transform: 'rotate(3deg) scale(1.05)',
+                        cursor: 'grabbing',
+                      }}
+                      className="shadow-2xl"
+                    >
+                      <DealCard deal={activeDeal} canEdit={false} canDelete={false} groupBy={groupBy} />
+                    </div>
+                  ) : null}
+                </DragOverlay>
+              </DndContext>
+            )}
           </>
         )}
       </div>

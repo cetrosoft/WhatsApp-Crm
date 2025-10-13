@@ -102,6 +102,12 @@ export const useAvailablePermissions = () => {
         setLoading(true);
         setError(null);
         const data = await permissionAPI.getAvailablePermissions();
+
+        // DEBUG: Log what we received from backend
+        console.log('📥 [Frontend Hook] Received data:', data);
+        console.log('📥 [Frontend Hook] Groups keys:', data?.groups ? Object.keys(data.groups) : 'NO GROUPS');
+        console.log('🎫 [Frontend Hook] Tickets group:', data?.groups?.tickets ? 'EXISTS' : 'NOT FOUND');
+
         setAvailablePermissions(data);
       } catch (err) {
         console.error('Error fetching available permissions:', err);

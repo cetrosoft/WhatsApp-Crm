@@ -1,13 +1,27 @@
-# How to Add a New Module to the Platform
+# ⚠️ DEPRECATED - OLD SYSTEM (Before October 11, 2025)
 
-This guide explains the step-by-step process for adding a new feature module (e.g., Invoices, Projects, etc.) to the Omnichannel CRM SaaS platform.
+**⛔ THIS DOCUMENT IS OUTDATED!**
 
-## Overview
+**Use instead:** [`ADD_NEW_MODULE_DYNAMIC.md`](./ADD_NEW_MODULE_DYNAMIC.md)
 
-Our platform uses a **permission-based architecture** where:
-- Menu visibility is controlled by database permissions (not hardcoded roles)
-- All access control is managed through the `roles` table
-- Permissions follow the pattern: `resource.action` (e.g., `invoices.view`, `invoices.create`)
+**Why deprecated?**
+- This guide uses HARDCODED `menuConfig.jsx` (removed October 11, 2025)
+- This guide uses HARDCODED `constants/permissions.js` (deprecated)
+- System now uses **database-driven architecture** with `menu_items` table
+- Menu filtering done by `get_user_menu()` function (not hardcoded)
+
+---
+
+# ~~How to Add a New Module to the Platform~~ (OLD)
+
+~~This guide explains the step-by-step process for adding a new feature module (e.g., Invoices, Projects, etc.) to the Omnichannel CRM SaaS platform.~~
+
+## ~~Overview~~ OUTDATED
+
+~~Our platform uses a **permission-based architecture** where:~~
+- ~~Menu visibility is controlled by database permissions (not hardcoded roles)~~
+- ~~All access control is managed through the `roles` table~~
+- ~~Permissions follow the pattern: `resource.action` (e.g., `invoices.view`, `invoices.create`)~~
 
 ---
 

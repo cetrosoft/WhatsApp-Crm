@@ -6,11 +6,11 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { contactAPI, statusAPI, userAPI, tagAPI, companyAPI } from '../services/api';
-import { Users, Plus, Search, Filter, Edit, Trash2, MoreVertical, AlertTriangle } from 'lucide-react';
+import { Users, Plus, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ContactModal from '../components/ContactModal';
-import SearchableSelect from '../components/SearchableSelect';
-import MultiSelectTags from '../components/MultiSelectTags';
+import ContactsFilters from '../components/Contacts/ContactsFilters';
+import ContactsTable from '../components/Contacts/ContactsTable';
 
 const Contacts = () => {
   const { t, i18n } = useTranslation(['contacts', 'common']);
@@ -245,318 +245,112 @@ const Contacts = () => {
       </div>
 
       {/* Search and Filters */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-4">
-        <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-          {/* Search */}
-          <div className="md:col-span-1">
-            <div className="relative">
-              <div className={`absolute inset-y-0 ${isRTL ? 'right-0 pr-3' : 'left-0 pl-3'} flex items-center pointer-events-none`}>
-                <Search className="w-5 h-5 text-gray-400" />
-              </div>
-              <input
-                type="text"
-                placeholder={t('searchContacts')}
-                value={searchTerm}
-                onChange={handleSearch}
-                className={`w-full ${isRTL ? 'pr-10 pl-4' : 'pl-10 pr-4'} py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent`}
-              />
-            </div>
-          </div>
-
-          {/* Tags Filter (Multi-select) */}
-          <div className="md:col-span-1">
-            <MultiSelectTags
-              selectedTags={tagFilter}
-              onChange={(tagIds) => {
-                setTagFilter(tagIds);
-                setPagination({ ...pagination, page: 1 });
-              }}
-              options={tags}
-              placeholder={t('allTags')}
-            />
-          </div>
-
-          {/* Company Filter */}
-          <div>
-            <SearchableSelect
-              value={companyFilter}
-              onChange={(value) => {
-                setCompanyFilter(value || '');
-                setPagination({ ...pagination, page: 1 });
-              }}
-              options={companies}
-              placeholder={t('allCompanies')}
-              displayKey="name"
-              valueKey="id"
-            />
-          </div>
-
-          {/* Status Filter */}
-          <div>
-            <SearchableSelect
-              value={statusFilter}
-              onChange={(value) => {
-                setStatusFilter(value || '');
-                setPagination({ ...pagination, page: 1 });
-              }}
-              options={[
-                { label: t('allStatuses'), value: '' },
-                ...statuses.map(status => ({
-                  label: isRTL ? status.name_ar : status.name_en,
-                  value: status.id
-                }))
-              ]}
-              placeholder={t('allStatuses')}
-              displayKey="label"
-              valueKey="value"
-            />
-          </div>
-
-          {/* Assigned Filter */}
-          <div>
-            <SearchableSelect
-              value={assignedFilter}
-              onChange={(value) => {
-                setAssignedFilter(value || '');
-                setPagination({ ...pagination, page: 1 });
-              }}
-              options={[
-                { label: t('allUsers'), value: '' },
-                ...users.map(user => ({
-                  label: user.full_name,
-                  value: user.id
-                }))
-              ]}
-              placeholder={t('allUsers')}
-              displayKey="label"
-              valueKey="value"
-            />
-          </div>
-
-          {/* Clear Filters Button */}
-          <div className="flex items-center">
-            <button
-              onClick={() => {
-                setSearchTerm('');
-                setTagFilter([]);
-                setCompanyFilter('');
-                setStatusFilter('');
-                setAssignedFilter('');
-                setPagination({ ...pagination, page: 1 });
-              }}
-              className="text-sm text-gray-600 hover:text-indigo-600 transition-colors"
-            >
-              {t('clearFilters')}
-            </button>
-          </div>
-        </div>
-      </div>
+      <ContactsFilters
+        searchTerm={searchTerm}
+        onSearchChange={handleSearch}
+        tagFilter={tagFilter}
+        onTagFilterChange={(tagIds) => {
+          setTagFilter(tagIds);
+          setPagination({ ...pagination, page: 1 });
+        }}
+        companyFilter={companyFilter}
+        onCompanyFilterChange={(value) => {
+          setCompanyFilter(value || '');
+          setPagination({ ...pagination, page: 1 });
+        }}
+        statusFilter={statusFilter}
+        onStatusFilterChange={(value) => {
+          setStatusFilter(value || '');
+          setPagination({ ...pagination, page: 1 });
+        }}
+        assignedFilter={assignedFilter}
+        onAssignedFilterChange={(value) => {
+          setAssignedFilter(value || '');
+          setPagination({ ...pagination, page: 1 });
+        }}
+        onClearFilters={() => {
+          setSearchTerm('');
+          setTagFilter([]);
+          setCompanyFilter('');
+          setStatusFilter('');
+          setAssignedFilter('');
+          setPagination({ ...pagination, page: 1 });
+        }}
+        companies={companies}
+        statuses={statuses}
+        users={users}
+        tags={tags}
+      />
 
       {/* Table */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        {loading ? (
-          <div className="p-8 text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
-            <p className="text-gray-600 mt-4">Loading...</p>
-          </div>
-        ) : contacts.length === 0 ? (
-          <div className="p-8 text-center">
-            <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-600">{t('noContacts')}</p>
-          </div>
-        ) : (
-          <>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-max">
-                <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr>
-                    <th className="px-4 py-3 text-start text-xs font-medium text-gray-500 uppercase">
-                      {t('name')}
-                    </th>
-                    <th className="px-4 py-3 text-start text-xs font-medium text-gray-500 uppercase">
-                      {t('phone')}
-                    </th>
-                    <th className="px-4 py-3 text-start text-xs font-medium text-gray-500 uppercase">
-                      {t('email')}
-                    </th>
-                    <th className="px-4 py-3 text-start text-xs font-medium text-gray-500 uppercase">
-                      {t('tags')}
-                    </th>
-                    <th className="px-4 py-3 text-start text-xs font-medium text-gray-500 uppercase">
-                      {t('status')}
-                    </th>
-                    <th className="px-4 py-3 text-start text-xs font-medium text-gray-500 uppercase">
-                      {t('company')}
-                    </th>
-                    <th className="px-4 py-3 text-start text-xs font-medium text-gray-500 uppercase">
-                      {t('country')}
-                    </th>
-                    <th className="px-4 py-3 text-start text-xs font-medium text-gray-500 uppercase">
-                      {t('assignedTo')}
-                    </th>
-                    <th className="px-4 py-3 text-start text-xs font-medium text-gray-500 uppercase w-20">
-                      {t('actions')}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {contacts.map((contact) => (
-                    <tr key={contact.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-4">
-                        <div className="flex items-center gap-2">
-                          {contact.avatar_url ? (
-                            <img
-                              src={contact.avatar_url}
-                              alt={contact.name}
-                              className="w-8 h-8 rounded-full object-cover flex-shrink-0"
-                            />
-                          ) : (
-                            <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
-                              <span className="text-indigo-600 font-medium text-sm">
-                                {contact.name.charAt(0).toUpperCase()}
-                              </span>
-                            </div>
-                          )}
-                          <div className="min-w-0">
-                            <div className="font-medium text-gray-900 text-sm truncate">{contact.name}</div>
-                            {contact.position && (
-                              <div className="text-xs text-gray-500 truncate">{contact.position}</div>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-4 text-sm text-gray-900" dir="ltr">
-                        {contact.phone_country_code && contact.phone ? `${contact.phone_country_code} ${contact.phone}` : contact.phone || '-'}
-                      </td>
-                      <td className="px-4 py-4 text-sm text-gray-900">
-                        <span className="truncate block max-w-[200px]">{contact.email || '-'}</span>
-                      </td>
-                      <td className="px-4 py-4">
-                        {contact.contact_tags && contact.contact_tags.length > 0 ? (
-                          <div className="flex flex-wrap gap-1">
-                            {contact.contact_tags.slice(0, 3).map((ct) => {
-                              const tag = ct.tags;
-                              const tagName = isRTL && tag.name_ar ? tag.name_ar : tag.name_en;
-                              return (
-                                <span
-                                  key={ct.tag_id}
-                                  className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-white"
-                                  style={{ backgroundColor: tag.color || '#6366f1' }}
-                                >
-                                  {tagName}
-                                </span>
-                              );
-                            })}
-                            {contact.contact_tags.length > 3 && (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                                +{contact.contact_tags.length - 3}
-                              </span>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-gray-400">-</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-4">
-                        {getStatusBadge(contact.status)}
-                      </td>
-                      <td className="px-4 py-4 text-sm text-gray-900">
-                        <span className="truncate block max-w-[150px]">{contact.companies?.name || t('noCompany')}</span>
-                      </td>
-                      <td className="px-4 py-4 text-sm text-gray-900">
-                        {getCountryDisplay(contact.country)}
-                      </td>
-                      <td className="px-4 py-4 text-sm text-gray-900">
-                        <span className="truncate block max-w-[120px]">
-                          {contact.assigned_user?.full_name || (
-                            <span className="text-gray-400">{t('unassigned')}</span>
-                          )}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4 text-sm font-medium">
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => handleEdit(contact)}
-                            className="text-indigo-600 hover:text-indigo-900 transition-colors"
-                            title={t('edit')}
-                          >
-                            <Edit className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteClick(contact)}
-                            className="text-gray-400 hover:text-red-600 transition-colors"
-                            title={t('delete')}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+        <ContactsTable
+          contacts={contacts}
+          onEdit={handleEdit}
+          onDelete={handleDeleteClick}
+          getStatusBadge={getStatusBadge}
+          getCountryDisplay={getCountryDisplay}
+          loading={loading}
+        />
+        {contacts.length > 0 && (
+          <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+            <div className="flex-1 flex justify-between sm:hidden">
+              <button
+                onClick={() => setPagination({ ...pagination, page: pagination.page - 1 })}
+                disabled={pagination.page === 1}
+                className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {t('previous')}
+              </button>
+              <button
+                onClick={() => setPagination({ ...pagination, page: pagination.page + 1 })}
+                disabled={pagination.page >= pagination.pages}
+                className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {t('next')}
+              </button>
             </div>
-
-            {/* Pagination */}
-            <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
-              <div className="flex-1 flex justify-between sm:hidden">
-                <button
-                  onClick={() => setPagination({ ...pagination, page: pagination.page - 1 })}
-                  disabled={pagination.page === 1}
-                  className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {t('previous')}
-                </button>
-                <button
-                  onClick={() => setPagination({ ...pagination, page: pagination.page + 1 })}
-                  disabled={pagination.page >= pagination.pages}
-                  className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {t('next')}
-                </button>
+            <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm text-gray-700">
+                  {t('showing')} <span className="font-medium">{(pagination.page - 1) * pagination.limit + 1}</span> {t('to')}{' '}
+                  <span className="font-medium">{Math.min(pagination.page * pagination.limit, pagination.total)}</span> {t('of')}{' '}
+                  <span className="font-medium">{pagination.total}</span> {t('results')}
+                </p>
               </div>
-              <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-sm text-gray-700">
-                    {t('showing')} <span className="font-medium">{(pagination.page - 1) * pagination.limit + 1}</span> {t('to')}{' '}
-                    <span className="font-medium">{Math.min(pagination.page * pagination.limit, pagination.total)}</span> {t('of')}{' '}
-                    <span className="font-medium">{pagination.total}</span> {t('results')}
-                  </p>
-                </div>
-                <div className="flex items-center gap-4">
-                  <select
-                    value={pagination.limit}
-                    onChange={(e) => setPagination({ ...pagination, limit: parseInt(e.target.value), page: 1 })}
-                    className="border border-gray-300 rounded-md px-3 py-1 text-sm"
+              <div className="flex items-center gap-4">
+                <select
+                  value={pagination.limit}
+                  onChange={(e) => setPagination({ ...pagination, limit: parseInt(e.target.value), page: 1 })}
+                  className="border border-gray-300 rounded-md px-3 py-1 text-sm"
+                >
+                  <option value={10}>10 {t('perPage')}</option>
+                  <option value={25}>25 {t('perPage')}</option>
+                  <option value={50}>50 {t('perPage')}</option>
+                  <option value={100}>100 {t('perPage')}</option>
+                </select>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setPagination({ ...pagination, page: pagination.page - 1 })}
+                    disabled={pagination.page === 1}
+                    className="px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <option value={10}>10 {t('perPage')}</option>
-                    <option value={25}>25 {t('perPage')}</option>
-                    <option value={50}>50 {t('perPage')}</option>
-                    <option value={100}>100 {t('perPage')}</option>
-                  </select>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setPagination({ ...pagination, page: pagination.page - 1 })}
-                      disabled={pagination.page === 1}
-                      className="px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {t('previous')}
-                    </button>
-                    <span className="px-3 py-1 text-sm text-gray-700">
-                      {pagination.page} / {pagination.pages}
-                    </span>
-                    <button
-                      onClick={() => setPagination({ ...pagination, page: pagination.page + 1 })}
-                      disabled={pagination.page >= pagination.pages}
-                      className="px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {t('next')}
-                    </button>
-                  </div>
+                    {t('previous')}
+                  </button>
+                  <span className="px-3 py-1 text-sm text-gray-700">
+                    {pagination.page} / {pagination.pages}
+                  </span>
+                  <button
+                    onClick={() => setPagination({ ...pagination, page: pagination.page + 1 })}
+                    disabled={pagination.page >= pagination.pages}
+                    className="px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {t('next')}
+                  </button>
                 </div>
               </div>
             </div>
-          </>
+          </div>
         )}
       </div>
 

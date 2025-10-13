@@ -6,11 +6,13 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { companyAPI, countryAPI, tagAPI } from '../services/api';
-import { Plus, Edit2, Trash2, Building2, Users, MapPin, Phone, Mail, Globe, Grid3x3, List, Search, X } from 'lucide-react';
+import { Plus, Building2, Grid3x3, List, Search, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import CompanyModal from '../components/CompanyModal';
 import SearchableSelect from '../components/SearchableSelect';
 import MultiSelectTags from '../components/MultiSelectTags';
+import CompanyCardView from '../components/Companies/CompanyCardView';
+import CompanyListView from '../components/Companies/CompanyListView';
 
 const Companies = () => {
   const { t, i18n } = useTranslation('common');
@@ -168,10 +170,6 @@ const Companies = () => {
     });
   };
 
-  const getEmployeeSizeLabel = (size) => {
-    if (!size) return '-';
-    return size;
-  };
 
   if (loading) {
     return (
@@ -330,308 +328,21 @@ const Companies = () => {
           </button>
         </div>
       ) : viewMode === 'card' ? (
-        /* Card View */
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {displayCompanies.map((company) => (
-            <div
-              key={company.id}
-              className="flex flex-col bg-white rounded-lg border border-gray-200 hover:shadow-lg transition-shadow overflow-hidden"
-            >
-              {/* Company Header with Logo */}
-              <div className="p-4 border-b border-gray-200">
-                <div className="flex items-start gap-3">
-                  {/* Logo */}
-                  <div className="flex-shrink-0">
-                    {company.logo_url ? (
-                      <img
-                        src={company.logo_url}
-                        alt={company.name}
-                        className="w-12 h-12 rounded-lg object-cover border border-gray-200"
-                      />
-                    ) : (
-                      <div className="w-12 h-12 rounded-lg bg-indigo-100 flex items-center justify-center">
-                        <Building2 className="w-6 h-6 text-indigo-600" />
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Company Info */}
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-base font-semibold text-gray-900 truncate">
-                      {company.name}
-                    </h3>
-                    {company.industry && (
-                      <p className="text-xs text-gray-600 mt-1">
-                        {company.industry}
-                      </p>
-                    )}
-                    {company.employee_size && (
-                      <div className="flex items-center gap-1 mt-1">
-                        <Users className="w-3 h-3 text-gray-400" />
-                        <span className="text-xs text-gray-600">
-                          {getEmployeeSizeLabel(company.employee_size)}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Company Details */}
-              <div className="flex-1 p-3 space-y-2">
-                {/* Contact Info */}
-                {company.phone && (
-                  <div className="flex items-center gap-2 text-xs text-gray-600">
-                    <Phone className="w-3 h-3 text-gray-400 flex-shrink-0" />
-                    <span className="truncate">{company.phone}</span>
-                  </div>
-                )}
-                {company.email && (
-                  <div className="flex items-center gap-2 text-xs text-gray-600">
-                    <Mail className="w-3 h-3 text-gray-400 flex-shrink-0" />
-                    <span className="truncate">{company.email}</span>
-                  </div>
-                )}
-                {company.website && (
-                  <div className="flex items-center gap-2 text-xs text-gray-600">
-                    <Globe className="w-3 h-3 text-gray-400 flex-shrink-0" />
-                    <a
-                      href={company.website}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="truncate hover:text-indigo-600"
-                    >
-                      {company.website}
-                    </a>
-                  </div>
-                )}
-                {company.address && (
-                  <div className="flex items-center gap-2 text-xs text-gray-600">
-                    <MapPin className="w-3 h-3 text-gray-400 flex-shrink-0" />
-                    <span className="truncate">{company.address}</span>
-                  </div>
-                )}
-
-                {/* Stats */}
-                <div className="flex items-center gap-3 pt-2 border-t border-gray-100">
-                  <div className="text-center">
-                    <div className="text-base font-semibold text-gray-900">
-                      {company.contact_count || 0}
-                    </div>
-                    <div className="text-xs text-gray-600">
-                      {t('contacts')}
-                    </div>
-                  </div>
-                  {company.tax_id && (
-                    <div className="text-center border-l border-gray-200 pl-3">
-                      <div className="text-xs text-gray-600">
-                        {t('taxId')}
-                      </div>
-                      <div className="text-xs font-medium text-gray-900 truncate">
-                        {company.tax_id}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="mt-auto px-3 py-3 bg-gray-50 border-t border-gray-200 flex items-center gap-2">
-                <button
-                  onClick={() => handleEditCompany(company)}
-                  className="flex-1 flex items-center justify-center gap-1 px-3 py-2 text-xs font-medium text-indigo-600 bg-white border border-indigo-200 rounded-lg hover:bg-indigo-50 transition-colors"
-                >
-                  <Edit2 className="w-3 h-3" />
-                  {t('edit')}
-                </button>
-                <button
-                  onClick={() => handleDeleteCompany(company)}
-                  disabled={deletingId === company.id}
-                  className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
-                  title={t('delete')}
-                >
-                  <Trash2 className="w-3 h-3" />
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
+        <CompanyCardView
+          companies={displayCompanies}
+          onEdit={handleEditCompany}
+          onDelete={handleDeleteCompany}
+          deletingId={deletingId}
+        />
       ) : (
-        /* List View */
-        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200" dir={isRTL ? 'rtl' : 'ltr'}>
-            <thead className="bg-gray-50">
-              <tr>
-                <th className={`px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider ${isRTL ? 'text-right' : 'text-left'}`}>
-                  {t('company')}
-                </th>
-                <th className={`px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider ${isRTL ? 'text-right' : 'text-left'}`}>
-                  {t('contact')}
-                </th>
-                <th className={`px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider ${isRTL ? 'text-right' : 'text-left'}`}>
-                  {t('industry')}
-                </th>
-                <th className={`px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider ${isRTL ? 'text-right' : 'text-left'}`}>
-                  {t('employeeSize')}
-                </th>
-                <th className={`px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider ${isRTL ? 'text-right' : 'text-left'}`}>
-                  {t('country')}
-                </th>
-                <th className={`px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider ${isRTL ? 'text-right' : 'text-left'}`}>
-                  {t('tags')}
-                </th>
-                <th className={`px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider ${isRTL ? 'text-left' : 'text-right'}`}>
-                  {t('actions')}
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {displayCompanies.map((company) => (
-                <tr key={company.id} className="hover:bg-gray-50 transition-colors">
-                  {/* Company */}
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <div className="flex items-center gap-3">
-                      {company.logo_url ? (
-                        <img
-                          src={company.logo_url}
-                          alt={company.name}
-                          className="w-10 h-10 rounded object-cover border border-gray-200"
-                        />
-                      ) : (
-                        <div className="w-10 h-10 rounded bg-indigo-100 flex items-center justify-center flex-shrink-0">
-                          <Building2 className="w-5 h-5 text-indigo-600" />
-                        </div>
-                      )}
-                      <div className="min-w-0">
-                        <div className="text-sm font-medium text-gray-900 truncate">
-                          {company.name}
-                        </div>
-                        {company.website && (
-                          <a
-                            href={company.website}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-xs text-indigo-600 hover:text-indigo-800 truncate block"
-                          >
-                            {company.website}
-                          </a>
-                        )}
-                      </div>
-                    </div>
-                  </td>
-
-                  {/* Contact */}
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">
-                      {company.phone && (
-                        <div className="flex items-center gap-1">
-                          <Phone className="w-3 h-3 text-gray-400" />
-                          <span>{company.phone}</span>
-                        </div>
-                      )}
-                      {company.email && (
-                        <div className="flex items-center gap-1 mt-1">
-                          <Mail className="w-3 h-3 text-gray-400" />
-                          <span className="truncate">{company.email}</span>
-                        </div>
-                      )}
-                    </div>
-                  </td>
-
-                  {/* Industry */}
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">
-                      {company.industry || '-'}
-                    </div>
-                  </td>
-
-                  {/* Employee Size */}
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <div className="flex items-center gap-1 text-sm text-gray-900">
-                      {company.employee_size && (
-                        <>
-                          <Users className="w-3 h-3 text-gray-400" />
-                          <span>{getEmployeeSizeLabel(company.employee_size)}</span>
-                        </>
-                      )}
-                      {!company.employee_size && '-'}
-                    </div>
-                  </td>
-
-                  {/* Country */}
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">
-                      {company.country_id ? (
-                        (() => {
-                          const country = countries.find(c => c.id === company.country_id);
-                          return country ? (
-                            <div className="flex items-center gap-1">
-                              <MapPin className="w-3 h-3 text-gray-400" />
-                              <span className="truncate">
-                                {isRTL ? country.name_ar : country.name_en}
-                              </span>
-                            </div>
-                          ) : '-';
-                        })()
-                      ) : '-'}
-                    </div>
-                  </td>
-
-                  {/* Tags */}
-                  <td className="px-4 py-3">
-                    <div className="flex flex-wrap gap-1">
-                      {company.tags && company.tags.length > 0 ? (
-                        company.tags.slice(0, 3).map((tagId) => {
-                          const tag = tags.find(t => t.id === tagId);
-                          return tag ? (
-                            <span
-                              key={tag.id}
-                              className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
-                              style={{
-                                backgroundColor: tag.color ? `${tag.color}20` : '#E5E7EB',
-                                color: tag.color || '#374151'
-                              }}
-                            >
-                              {isRTL ? tag.name_ar : tag.name_en}
-                            </span>
-                          ) : null;
-                        })
-                      ) : (
-                        <span className="text-sm text-gray-400">-</span>
-                      )}
-                      {company.tags && company.tags.length > 3 && (
-                        <span className="text-xs text-gray-500">
-                          +{company.tags.length - 3}
-                        </span>
-                      )}
-                    </div>
-                  </td>
-
-                  {/* Actions */}
-                  <td className={`px-4 py-3 whitespace-nowrap ${isRTL ? 'text-left' : 'text-right'}`}>
-                    <div className={`flex items-center gap-2 ${isRTL ? 'justify-start' : 'justify-end'}`}>
-                      <button
-                        onClick={() => handleEditCompany(company)}
-                        className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                        title={t('edit')}
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteCompany(company)}
-                        disabled={deletingId === company.id}
-                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
-                        title={t('delete')}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <CompanyListView
+          companies={displayCompanies}
+          countries={countries}
+          tags={tags}
+          onEdit={handleEditCompany}
+          onDelete={handleDeleteCompany}
+          deletingId={deletingId}
+        />
       )}
 
       {/* Company Modal */}

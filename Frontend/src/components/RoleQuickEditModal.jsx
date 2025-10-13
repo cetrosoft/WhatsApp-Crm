@@ -4,11 +4,12 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { X, Save, Shield, Settings, Users, Building } from 'lucide-react';
+import { X, Save, Shield } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { roleAPI, permissionAPI } from '../services/api';
 import PermissionMatrix from './Permissions/PermissionMatrix';
+import { getModuleIcon } from '../utils/iconMapper';
 
 const RoleQuickEditModal = ({ role, isOpen, onClose, onSuccess }) => {
   const { t } = useTranslation(['common', 'settings']);
@@ -27,6 +28,16 @@ const RoleQuickEditModal = ({ role, isOpen, onClose, onSuccess }) => {
       loadData();
     }
   }, [isOpen, role]);
+
+  // Set initial module to first available when permissions load
+  useEffect(() => {
+    if (availablePermissions?.groups) {
+      const firstModule = Object.keys(availablePermissions.groups)[0];
+      if (firstModule && !Object.keys(availablePermissions.groups).includes(selectedModule)) {
+        setSelectedModule(firstModule);
+      }
+    }
+  }, [availablePermissions]);
 
   const loadData = async () => {
     try {
@@ -149,57 +160,30 @@ const RoleQuickEditModal = ({ role, isOpen, onClose, onSuccess }) => {
                 </div>
               </div>
 
-              {/* Module Tabs */}
+              {/* Module Tabs - Dynamic from Backend */}
               <div className="border-b border-gray-200 mb-4">
-                <nav className="flex -mb-px gap-1">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedModule('crm')}
-                    className={`flex items-center gap-2 px-4 py-2 border-b-2 font-medium text-sm transition-colors ${
-                      selectedModule === 'crm'
-                        ? 'border-indigo-600 text-indigo-600'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                    }`}
-                  >
-                    <Shield className="w-4 h-4" />
-                    <span>{t('common:crm')}</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedModule('settings')}
-                    className={`flex items-center gap-2 px-4 py-2 border-b-2 font-medium text-sm transition-colors ${
-                      selectedModule === 'settings'
-                        ? 'border-indigo-600 text-indigo-600'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                    }`}
-                  >
-                    <Settings className="w-4 h-4" />
-                    <span>{t('common:settings')}</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedModule('team')}
-                    className={`flex items-center gap-2 px-4 py-2 border-b-2 font-medium text-sm transition-colors ${
-                      selectedModule === 'team'
-                        ? 'border-indigo-600 text-indigo-600'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                    }`}
-                  >
-                    <Users className="w-4 h-4" />
-                    <span>{t('common:team')}</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedModule('organization')}
-                    className={`flex items-center gap-2 px-4 py-2 border-b-2 font-medium text-sm transition-colors ${
-                      selectedModule === 'organization'
-                        ? 'border-indigo-600 text-indigo-600'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                    }`}
-                  >
-                    <Building className="w-4 h-4" />
-                    <span>{t('common:organization')}</span>
-                  </button>
+                <nav className="flex -mb-px gap-1 overflow-x-auto">
+                  {availablePermissions?.groups && Object.keys(availablePermissions.groups).map((moduleKey) => {
+                    const moduleGroup = availablePermissions.groups[moduleKey];
+                    const IconComponent = getModuleIcon(moduleKey, moduleGroup?.icon);
+                    const moduleLabel = moduleGroup?.label || moduleKey;
+
+                    return (
+                      <button
+                        key={moduleKey}
+                        type="button"
+                        onClick={() => setSelectedModule(moduleKey)}
+                        className={`flex items-center gap-2 px-4 py-2 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${
+                          selectedModule === moduleKey
+                            ? 'border-indigo-600 text-indigo-600'
+                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                        }`}
+                      >
+                        <IconComponent className="w-4 h-4" />
+                        <span>{t(`common:${moduleKey}`, moduleLabel)}</span>
+                      </button>
+                    );
+                  })}
                 </nav>
               </div>
 

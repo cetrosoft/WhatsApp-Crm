@@ -1023,6 +1023,146 @@ export const pipelineAPI = {
 };
 
 /**
+ * Ticket API
+ * Endpoints for managing support tickets
+ */
+export const ticketAPI = {
+  /**
+   * Get all tickets with optional filters
+   */
+  getTickets: async (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return await apiCall(`/api/tickets${queryString ? `?${queryString}` : ''}`);
+  },
+
+  /**
+   * Get single ticket by ID
+   */
+  getTicket: async (id) => {
+    return await apiCall(`/api/tickets/${id}`);
+  },
+
+  /**
+   * Create new ticket
+   */
+  createTicket: async (data) => {
+    return await apiCall('/api/tickets', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  /**
+   * Update ticket
+   */
+  updateTicket: async (id, data) => {
+    return await apiCall(`/api/tickets/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  },
+
+  /**
+   * Delete ticket
+   */
+  deleteTicket: async (id) => {
+    return await apiCall(`/api/tickets/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  /**
+   * Get ticket categories
+   */
+  getCategories: async () => {
+    return await apiCall('/api/tickets/categories');
+  },
+
+  /**
+   * Create ticket category
+   */
+  createCategory: async (data) => {
+    return await apiCall('/api/tickets/categories', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  /**
+   * Update ticket category
+   */
+  updateCategory: async (id, data) => {
+    return await apiCall(`/api/tickets/categories/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  },
+
+  /**
+   * Delete ticket category
+   */
+  deleteCategory: async (id) => {
+    return await apiCall(`/api/tickets/categories/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  /**
+   * Change ticket status
+   */
+  changeStatus: async (id, status) => {
+    return await apiCall(`/api/tickets/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    });
+  },
+
+  /**
+   * Change ticket priority
+   */
+  changePriority: async (id, priority) => {
+    return await apiCall(`/api/tickets/${id}/priority`, {
+      method: 'PATCH',
+      body: JSON.stringify({ priority }),
+    });
+  },
+
+  /**
+   * Assign ticket to user
+   */
+  assignTicket: async (id, userId) => {
+    return await apiCall(`/api/tickets/${id}/assign`, {
+      method: 'PATCH',
+      body: JSON.stringify({ assigned_to: userId }),
+    });
+  },
+
+  /**
+   * Get ticket comments
+   */
+  getComments: async (ticketId) => {
+    return await apiCall(`/api/tickets/${ticketId}/comments`);
+  },
+
+  /**
+   * Add comment to ticket
+   */
+  addComment: async (ticketId, data) => {
+    return await apiCall(`/api/tickets/${ticketId}/comments`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  /**
+   * Get ticket attachments
+   */
+  getAttachments: async (ticketId) => {
+    return await apiCall(`/api/tickets/${ticketId}/attachments`);
+  },
+};
+
+/**
  * Menu API
  * Endpoints for dynamic menu management
  */
@@ -1093,6 +1233,7 @@ export default {
   companyAPI,
   dealAPI,
   pipelineAPI,
+  ticketAPI,
   permissionAPI,
   menuAPI,
   tokenUtils,

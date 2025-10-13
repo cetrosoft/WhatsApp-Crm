@@ -31,6 +31,7 @@ import companyRoutes from './routes/companyRoutes.js';
 import dealRoutes from './routes/dealRoutes.js';
 import pipelineRoutes from './routes/pipelineRoutes.js';
 import segmentRoutes from './routes/segmentRoutes.js';
+import ticketRoutes from './routes/ticketRoutes.js';
 
 const app = express();
 const server = createServer(app);
@@ -50,13 +51,15 @@ app.use(fileUpload({
 const socketMiddleware = setupSocketHandlers(io, whatsappClient);
 app.use(socketMiddleware);
 
+// ⚠️ WhatsApp initialization temporarily disabled due to browser lock error
+// TODO: Fix WhatsApp Chromium browser lock issue before re-enabling
 // Initialize WhatsApp client
-whatsappClient.initialize(io);
+// whatsappClient.initialize(io);
 
 // Setup message processing
-whatsappClient.getClient().on("message", (msg) => {
-  processIncomingMessage(msg, io);
-});
+// whatsappClient.getClient().on("message", (msg) => {
+//   processIncomingMessage(msg, io);
+// });
 
 // API Routes
 app.use('/api/auth', authRoutes);
@@ -76,6 +79,7 @@ app.use('/api/crm/companies', companyRoutes);
 app.use('/api/crm/deals', dealRoutes);
 app.use('/api/crm/pipelines', pipelineRoutes);
 app.use('/api/segments', segmentRoutes);
+app.use('/api/tickets', ticketRoutes);
 
 // WhatsApp Routes (existing)
 app.use('/', chatRoutes);

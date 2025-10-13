@@ -570,10 +570,11 @@ router.get('/permissions/available', authenticate, setTenantContext, authorize([
       throw rolesError;
     }
 
-    // Fetch menu items for bilingual labels (name_en, name_ar)
+    // Fetch menu items for bilingual labels (name_en, name_ar) and icons
+    // IMPORTANT: parent_key is REQUIRED for hierarchy traversal!
     const { data: menuItems, error: menuError } = await supabase
       .from('menu_items')
-      .select('key, name_en, name_ar, required_permission')
+      .select('key, parent_key, name_en, name_ar, icon, required_permission')
       .eq('is_active', true);
 
     if (menuError) {
@@ -589,6 +590,13 @@ router.get('/permissions/available', authenticate, setTenantContext, authorize([
 
     // Dynamically discover all permissions from database roles with bilingual labels
     const dynamicGroups = discoverPermissionsFromRoles(roles, menuItems || []);
+
+    // DEBUG: Log what we're sending to frontend
+    console.log('📤 [API Response] Sending groups:', Object.keys(dynamicGroups));
+    console.log('🎫 [API Response] Tickets group:', dynamicGroups.tickets ? 'EXISTS' : 'NOT FOUND');
+    if (dynamicGroups.tickets) {
+      console.log('🎫 [API Response] Tickets permissions count:', dynamicGroups.tickets.permissions?.length);
+    }
 
     // Return dynamic permission groups and DB-sourced role permissions
     res.json({

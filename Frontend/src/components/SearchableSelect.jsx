@@ -1,11 +1,35 @@
 /**
  * Searchable Select Component
  * Uses Headless UI Combobox for searchable dropdown functionality
+ *
+ * @reusable
+ * @category Shared/Universal
+ * @example
+ * // Using simple string keys:
+ * <SearchableSelect
+ *   value={selectedId}
+ *   onChange={setSelectedId}
+ *   options={users}
+ *   placeholder="Select user"
+ *   displayKey="name"
+ *   valueKey="id"
+ * />
+ *
+ * // Using function props for complex logic:
+ * <SearchableSelect
+ *   value={selectedId}
+ *   onChange={setSelectedId}
+ *   options={users}
+ *   placeholder="Select user"
+ *   getOptionLabel={(user) => user.full_name || user.email}
+ *   getOptionValue={(user) => user.id}
+ *   allowClear
+ * />
  */
 
 import React, { useState } from 'react';
 import { Combobox } from '@headlessui/react';
-import { Check, ChevronDown } from 'lucide-react';
+import { Check, ChevronDown, X } from 'lucide-react';
 
 const SearchableSelect = ({
   value,
@@ -14,40 +38,84 @@ const SearchableSelect = ({
   placeholder = 'Select...',
   displayKey = 'label',
   valueKey = 'value',
+  getOptionLabel = null,
+  getOptionValue = null,
+  allowClear = false,
+  disabled = false,
+  error = null,
   className = ''
 }) => {
   const [query, setQuery] = useState('');
 
+  // Helper functions to get label and value from option
+  const getLabel = (option) => {
+    if (!option) return '';
+    if (getOptionLabel) return getOptionLabel(option);
+    return typeof option === 'string' ? option : option[displayKey];
+  };
+
+  const getValue = (option) => {
+    if (!option) return null;
+    if (getOptionValue) return getOptionValue(option);
+    return typeof option === 'string' ? option : option[valueKey];
+  };
+
   // Find selected option
-  const selectedOption = options.find(opt =>
-    (opt[valueKey] || opt) === value
-  );
+  const selectedOption = options.find(opt => getValue(opt) === value);
 
   // Filter options based on search query
   const filteredOptions = query === ''
     ? options
     : options.filter((option) => {
-        const label = typeof option === 'string' ? option : option[displayKey];
-        return label.toLowerCase().includes(query.toLowerCase());
+        const label = getLabel(option);
+        return label && label.toLowerCase().includes(query.toLowerCase());
       });
+
+  // Handle clear button click
+  const handleClear = (e) => {
+    e.stopPropagation();
+    onChange(null);
+    setQuery('');
+  };
 
   return (
     <Combobox
       value={value}
       onChange={onChange}
+      disabled={disabled}
     >
       <div className="relative">
         <div className="relative">
           <Combobox.Input
-            className={`w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors pr-10 ${className}`}
+            className={`w-full px-3 py-2 text-sm border rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors ${
+              allowClear && value ? 'pr-16' : 'pr-10'
+            } ${
+              error ? 'border-red-500' : 'border-gray-300'
+            } ${
+              disabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'
+            } ${className}`}
             displayValue={(val) => {
               if (!val) return '';
-              const opt = options.find(o => (o[valueKey] || o) === val);
-              return typeof opt === 'string' ? opt : (opt?.[displayKey] || '');
+              const opt = selectedOption;
+              return opt ? getLabel(opt) : '';
             }}
             onChange={(event) => setQuery(event.target.value)}
             placeholder={placeholder}
+            disabled={disabled}
           />
+
+          {/* Clear Button */}
+          {allowClear && value && !disabled && (
+            <button
+              type="button"
+              onClick={handleClear}
+              className="absolute inset-y-0 right-8 flex items-center pr-2 text-gray-400 hover:text-gray-600"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+
+          {/* Dropdown Button */}
           <Combobox.Button className="absolute inset-y-0 right-0 flex items-center pr-2">
             <ChevronDown className="w-4 h-4 text-gray-400" />
           </Combobox.Button>
@@ -60,8 +128,8 @@ const SearchableSelect = ({
             </div>
           ) : (
             filteredOptions.map((option, idx) => {
-              const optValue = typeof option === 'string' ? option : option[valueKey];
-              const optLabel = typeof option === 'string' ? option : option[displayKey];
+              const optValue = getValue(option);
+              const optLabel = getLabel(option);
 
               return (
                 <Combobox.Option

@@ -2,6 +2,16 @@
  * Multi-Select Tags Component
  * Dropdown with checkboxes for selecting multiple tags
  * Works with tag objects: { id, name_en, name_ar, color }
+ *
+ * @reusable
+ * @category Shared/Universal
+ * @example
+ * <MultiSelectTags
+ *   selectedTags={selectedTags}
+ *   onChange={setSelectedTags}
+ *   options={allTags}
+ *   placeholder="Select tags"
+ * />
  */
 
 import React, { useState, useRef, useEffect } from 'react';

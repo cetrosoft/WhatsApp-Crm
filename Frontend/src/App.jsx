@@ -29,6 +29,8 @@ import Segments from "./pages/Segments";
 import Companies from "./pages/Companies";
 import Deals from "./pages/Deals";
 import Pipelines from "./pages/Pipelines";
+import Tickets from "./pages/Tickets";
+import TicketSettings from "./pages/TicketSettings";
 
 // Pages - Team
 import TeamMembers from "./pages/Team/TeamMembers";
@@ -106,6 +108,24 @@ const MainLayout = () => {
           element={
             <PermissionRoute permission="statuses.view">
               <CRMSettings />
+            </PermissionRoute>
+          }
+        />
+
+        {/* Tickets - Permission Protected */}
+        <Route
+          path="/tickets"
+          element={
+            <PermissionRoute permission="tickets.view">
+              <Tickets />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="/tickets/settings"
+          element={
+            <PermissionRoute permission="ticket_categories.manage">
+              <TicketSettings />
             </PermissionRoute>
           }
         />

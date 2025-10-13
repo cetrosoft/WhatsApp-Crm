@@ -6,10 +6,10 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { segmentAPI, statusAPI, countryAPI, userAPI, tagAPI, leadSourceAPI } from '../services/api';
-import { X, Plus, Trash2 } from 'lucide-react';
+import { X, Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
-import SearchableSelect from './SearchableSelect';
-import MultiSelectTags from './MultiSelectTags';
+import SegmentHeader from './Segments/SegmentHeader';
+import SegmentConditionRow from './Segments/SegmentConditionRow';
 
 const SegmentBuilderModal = ({ isOpen, onClose, segment, onSave }) => {
   const { t, i18n } = useTranslation('common');
@@ -176,113 +176,6 @@ const SegmentBuilderModal = ({ isOpen, onClose, segment, onSave }) => {
     });
   };
 
-  const renderValueInput = (condition, index) => {
-    const { field, operator, value } = condition;
-
-    // No value input for is_null/is_not_null operators
-    if (operator === 'is_null' || operator === 'is_not_null') {
-      return null;
-    }
-
-    switch (field) {
-      case 'status_id':
-        const statusOptions = lookupData.statuses.map(status => ({
-          label: isRTL && status.name_ar ? status.name_ar : status.name_en,
-          value: status.id
-        }));
-        return (
-          <SearchableSelect
-            value={value}
-            onChange={(newValue) => updateCondition(index, 'value', newValue)}
-            options={statusOptions}
-            placeholder={t('select')}
-            displayKey="label"
-            valueKey="value"
-          />
-        );
-
-      case 'country_id':
-        const countryOptions = lookupData.countries.map(country => ({
-          label: isRTL ? country.name_ar : country.name_en,
-          value: country.id
-        }));
-        return (
-          <SearchableSelect
-            value={value}
-            onChange={(newValue) => updateCondition(index, 'value', newValue)}
-            options={countryOptions}
-            placeholder={t('select')}
-            displayKey="label"
-            valueKey="value"
-          />
-        );
-
-      case 'lead_source':
-        const leadSourceOptions = lookupData.leadSources.map(source => ({
-          label: isRTL && source.name_ar ? source.name_ar : source.name_en,
-          value: source.slug
-        }));
-        return (
-          <SearchableSelect
-            value={value}
-            onChange={(newValue) => updateCondition(index, 'value', newValue)}
-            options={leadSourceOptions}
-            placeholder={t('select')}
-            displayKey="label"
-            valueKey="value"
-          />
-        );
-
-      case 'assigned_to':
-        const userOptions = lookupData.users.map(user => ({
-          label: user.full_name,
-          value: user.id
-        }));
-        return (
-          <SearchableSelect
-            value={value}
-            onChange={(newValue) => updateCondition(index, 'value', newValue)}
-            options={userOptions}
-            placeholder={t('select')}
-            displayKey="label"
-            valueKey="value"
-          />
-        );
-
-      case 'tags':
-        return (
-          <MultiSelectTags
-            selectedTags={Array.isArray(value) ? value : []}
-            onChange={(newValue) => updateCondition(index, 'value', newValue)}
-            options={lookupData.tags}
-            placeholder={t('select')}
-            className="flex-1"
-          />
-        );
-
-      case 'created_at':
-        return (
-          <input
-            type="date"
-            value={value}
-            onChange={(e) => updateCondition(index, 'value', e.target.value)}
-            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-          />
-        );
-
-      default:
-        return (
-          <input
-            type="text"
-            value={value}
-            onChange={(e) => updateCondition(index, 'value', e.target.value)}
-            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-            placeholder={t('value')}
-          />
-        );
-    }
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -348,48 +241,10 @@ const SegmentBuilderModal = ({ isOpen, onClose, segment, onSave }) => {
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {/* Basic Info */}
-          <div className="space-y-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1 text-start">
-                {t('segmentNameEnglish')} *
-              </label>
-              <input
-                type="text"
-                required
-                value={formData.name_en}
-                onChange={(e) => setFormData({ ...formData, name_en: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                placeholder={t('egActiveCustomers')}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1 text-start">
-                {t('segmentNameArabic')}
-              </label>
-              <input
-                type="text"
-                value={formData.name_ar}
-                onChange={(e) => setFormData({ ...formData, name_ar: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                placeholder="مثال: العملاء النشطون"
-                dir="rtl"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1 text-start">
-                {t('descriptionEnglish')}
-              </label>
-              <textarea
-                value={formData.description_en}
-                onChange={(e) => setFormData({ ...formData, description_en: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                rows={2}
-                placeholder={t('egSegmentDescription')}
-              />
-            </div>
-          </div>
+          <SegmentHeader
+            formData={formData}
+            onChange={setFormData}
+          />
 
           {/* Filter Rules */}
           <div className="border-t border-gray-200 pt-4">
@@ -442,43 +297,15 @@ const SegmentBuilderModal = ({ isOpen, onClose, segment, onSave }) => {
               <div className="space-y-2">
                 {formData.filter_rules.conditions.map((condition, index) => (
                   <React.Fragment key={index}>
-                    <div className="flex items-start gap-1.5 p-2.5 bg-gray-50 rounded-lg">
-                      <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-1.5">
-                        {/* Field */}
-                        <SearchableSelect
-                          value={condition.field}
-                          onChange={(value) => updateCondition(index, 'field', value)}
-                          options={fieldOptions}
-                          placeholder={t('field')}
-                          displayKey="label"
-                          valueKey="value"
-                        />
-
-                        {/* Operator */}
-                        <SearchableSelect
-                          value={condition.operator}
-                          onChange={(value) => updateCondition(index, 'operator', value)}
-                          options={getOperatorOptions(condition.field)}
-                          placeholder={t('operator')}
-                          displayKey="label"
-                          valueKey="value"
-                        />
-
-                        {/* Value */}
-                        <div className="md:col-span-1">
-                          {renderValueInput(condition, index)}
-                        </div>
-                      </div>
-
-                      {/* Remove Button */}
-                      <button
-                        type="button"
-                        onClick={() => removeCondition(index)}
-                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
+                    <SegmentConditionRow
+                      condition={condition}
+                      index={index}
+                      fieldOptions={fieldOptions}
+                      getOperatorOptions={getOperatorOptions}
+                      lookupData={lookupData}
+                      onUpdate={updateCondition}
+                      onRemove={removeCondition}
+                    />
 
                     {/* AND/OR Separator */}
                     {index < formData.filter_rules.conditions.length - 1 && (

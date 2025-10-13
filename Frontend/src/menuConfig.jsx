@@ -1,12 +1,26 @@
 /**
- * Menu Configuration
- * Hierarchical navigation structure for all modules
- * Uses translation keys for bilingual support (EN/AR)
+ * ⚠️ ⚠️ ⚠️ DEPRECATED - FALLBACK ONLY ⚠️ ⚠️ ⚠️
  *
- * NOTE: Menu visibility is controlled by permissions from database, not hardcoded roles
- * - requiredPermission: Permission string to check (e.g., 'contacts.view')
- * - isActive: Boolean to enable/disable menu item (default: true)
- * - requiresFeature: Package feature requirement (optional)
+ * This file is ONLY used as fallback when database menu fails to load.
+ * Primary menu source: menu_items table via GET /api/menu
+ *
+ * DO NOT add new menu items here - use database instead!
+ *
+ * To add new menu items:
+ * 1. Create migration in supabase/migrations/
+ * 2. Insert into menu_items table with bilingual names
+ * 3. Menu will automatically appear for users with permission
+ *
+ * Example: See supabase/migrations/020_activate_tickets_settings_menu.sql
+ *
+ * Architecture: Database-driven menu (Oct 11, 2025 pattern)
+ * - Backend: GET /api/menu → get_user_menu() function
+ * - Frontend: useMenu(lang) hook → fetches from API
+ * - Sidebar: Uses dynamic menu, falls back to this file on error
+ *
+ * =====================================================
+ * Legacy Menu Configuration (Fallback Only)
+ * =====================================================
  */
 
 const menuConfig = [
@@ -197,6 +211,9 @@ const menuConfig = [
       }
     ]
   },
+  // ⚠️ MOVED TO DATABASE - See migration 019_tickets_module.sql
+  // Database keys: 'support_tickets' (parent), 'ticket_settings' (child)
+  // This entry kept for fallback only - DO NOT EDIT
   {
     id: 'tickets',
     labelKey: 'tickets',
@@ -204,44 +221,8 @@ const menuConfig = [
     icon: 'Ticket',
     requiredPermission: 'tickets.view',
     requiresFeature: 'ticketing',
-    isActive: false, // Not implemented yet
-    children: [
-      {
-        id: 'all-tickets',
-        labelKey: 'allTickets',
-        label: 'All Tickets',
-        icon: 'ListChecks',
-        path: '/tickets/all'
-      },
-      {
-        id: 'my-tickets',
-        labelKey: 'myTickets',
-        label: 'My Tickets',
-        icon: 'UserCircle',
-        path: '/tickets/my-tickets'
-      },
-      {
-        id: 'urgent-tickets',
-        labelKey: 'urgentTickets',
-        label: 'Urgent',
-        icon: 'AlertCircle',
-        path: '/tickets/urgent'
-      },
-      {
-        id: 'ticket-reports',
-        labelKey: 'ticketReports',
-        label: 'Reports',
-        icon: 'BarChart3',
-        path: '/tickets/reports'
-      },
-      {
-        id: 'ticket-settings',
-        labelKey: 'ticketSettings',
-        label: 'Ticket Settings',
-        icon: 'Settings',
-        path: '/tickets/settings'
-      }
-    ]
+    isActive: false, // ⚠️ DISABLED - Now in database
+    children: []
   },
   {
     id: 'analytics',
