@@ -5,6 +5,7 @@
 
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { useLanguage } from '../../contexts/LanguageContext';
 import MatrixRow from './MatrixRow';
 import { groupPermissionsByModule } from '../../utils/matrixUtils';
 
@@ -18,6 +19,7 @@ const PermissionMatrix = ({
   disabled = false,
 }) => {
   const { t } = useTranslation(['common']);
+  const { isRTL } = useLanguage();
 
   if (!availablePermissions) {
     return (
@@ -67,7 +69,7 @@ const PermissionMatrix = ({
                 key={action.key}
                 className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider border-l border-b border-gray-100"
               >
-                {t(`common:${action.key}`)}
+                {isRTL ? (action.label_ar || action.label_en) : action.label_en}
               </th>
             ))}
           </tr>

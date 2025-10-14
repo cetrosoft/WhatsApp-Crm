@@ -6,6 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Save, Shield } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useLanguage } from '../contexts/LanguageContext';
 import toast from 'react-hot-toast';
 import { roleAPI, permissionAPI } from '../services/api';
 import PermissionMatrix from './Permissions/PermissionMatrix';
@@ -13,6 +14,7 @@ import { getModuleIcon } from '../utils/iconMapper';
 
 const RoleQuickEditModal = ({ role, isOpen, onClose, onSuccess }) => {
   const { t } = useTranslation(['common', 'settings']);
+  const { isRTL } = useLanguage();
   const [selectedPermissions, setSelectedPermissions] = useState([]);
   const [availablePermissions, setAvailablePermissions] = useState(null);
   const [selectedModule, setSelectedModule] = useState('crm');
@@ -166,7 +168,10 @@ const RoleQuickEditModal = ({ role, isOpen, onClose, onSuccess }) => {
                   {availablePermissions?.groups && Object.keys(availablePermissions.groups).map((moduleKey) => {
                     const moduleGroup = availablePermissions.groups[moduleKey];
                     const IconComponent = getModuleIcon(moduleKey, moduleGroup?.icon);
-                    const moduleLabel = moduleGroup?.label || moduleKey;
+                    // Use bilingual label based on current language (v3.0 database-driven!)
+                    const moduleLabel = isRTL
+                      ? (moduleGroup?.label_ar || moduleGroup?.label_en || moduleKey)
+                      : (moduleGroup?.label_en || moduleKey);
 
                     return (
                       <button

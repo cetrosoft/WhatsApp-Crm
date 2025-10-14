@@ -1,9 +1,8 @@
 /**
- * Dynamic Permission Discovery Utilities v3.0
- * 100% Database-Driven - No hardcoded permission mappings!
+ * Dynamic Permission Discovery Utilities
  * Automatically discovers permissions from database roles
  * Supports bilingual labels from menu_items table
- * Uses permission_module column for automatic categorization
+ * No hardcoded permission lists - fully database-driven
  */
 
 /**
@@ -23,14 +22,59 @@ const ACTION_LABELS = {
 };
 
 /**
- * Find menu item by permission module (NEW in v3.0 - Database-driven!)
- * Replaces hardcoded mapModuleToMenuKey() and mapModuleToLabelMenuKey() functions
- * @param {string} module - Permission module (e.g., 'contacts', 'tickets')
- * @param {Array} menuItems - Array of menu items from database
- * @returns {Object|null} Menu item or null if not found
+ * Map permission module to menu item key (for GROUPING - finds parent)
+ * @param {string} module - Permission module (e.g., 'pipelines', 'contacts')
+ * @returns {string} Menu key (e.g., 'crm_pipelines', 'crm_contacts')
  */
-function findMenuItemByModule(module, menuItems) {
-  return menuItems.find(item => item.permission_module === module) || null;
+function mapModuleToMenuKey(module) {
+  const moduleToMenu = {
+    'contacts': 'crm_contacts',
+    'companies': 'crm_companies',
+    'segments': 'crm_segmentation',
+    'deals': 'crm_deals',
+    'pipelines': 'crm_pipelines',
+    'campaigns': 'campaigns',
+    'conversations': 'conversations',
+    'tickets': 'support_tickets',
+    'ticket_categories': 'support_tickets',
+    'analytics': 'analytics',
+    'tags': 'crm_settings',              // Group under CRM Settings
+    'statuses': 'crm_settings',          // Group under CRM Settings
+    'lead_sources': 'crm_settings',      // Group under CRM Settings
+    'users': 'team_members',
+    'permissions': 'team_roles',
+    'organization': 'settings_account'
+  };
+
+  return moduleToMenu[module] || module;
+}
+
+/**
+ * Map permission module to its actual menu item key (for LABELS - finds individual item)
+ * @param {string} module - Permission module (e.g., 'tags', 'statuses')
+ * @returns {string} Actual menu item key (e.g., 'tags', 'contact_statuses')
+ */
+function mapModuleToLabelMenuKey(module) {
+  const moduleToLabelMenu = {
+    'contacts': 'crm_contacts',
+    'companies': 'crm_companies',
+    'segments': 'crm_segmentation',
+    'deals': 'crm_deals',
+    'pipelines': 'crm_pipelines',
+    'campaigns': 'campaigns',
+    'conversations': 'conversations',
+    'tickets': 'support_tickets',
+    'ticket_categories': 'ticket_settings',  // Individual settings item!
+    'analytics': 'analytics',
+    'tags': 'tags',                      // Individual item (not parent!)
+    'statuses': 'contact_statuses',      // Individual item (not parent!)
+    'lead_sources': 'lead_sources',      // Individual item (not parent!)
+    'users': 'team_members',
+    'permissions': 'team_roles',
+    'organization': 'settings_account'
+  };
+
+  return moduleToLabelMenu[module] || module;
 }
 
 /**
@@ -85,8 +129,9 @@ export function formatPermissionLabel(permKey, menuItems = []) {
   let moduleNameAr = formatModuleName(module); // fallback to English
 
   if (menuItems.length > 0) {
-    // NEW v3.0: Database lookup via permission_module column
-    const menuItem = findMenuItemByModule(module, menuItems);
+    // Use label key to find the individual menu item (not parent!)
+    const menuKey = mapModuleToLabelMenuKey(module);
+    const menuItem = menuItems.find(item => item.key === menuKey);
 
     if (menuItem) {
       moduleNameEn = menuItem.name_en;
@@ -148,14 +193,14 @@ export function discoverPermissionsFromRoles(roles, menuItems = []) {
     perms.forEach(perm => allPermissions.add(perm));
   });
 
-  console.log('🔍 [Permission Discovery v3.0] Total unique permissions:', allPermissions.size);
+  console.log('🔍 [Permission Discovery] Total unique permissions:', allPermissions.size);
 
   // Build parent map from menu hierarchy
   const parentMap = buildParentMap(menuItems);
   const itemsByKey = {};
   menuItems.forEach(item => itemsByKey[item.key] = item);
 
-  console.log('🌳 [Permission Discovery v3.0] Menu hierarchy map built:', Object.keys(parentMap).length, 'items');
+  console.log('🌳 [Permission Discovery] Menu hierarchy map built:', Object.keys(parentMap).length, 'items');
 
   // Group permissions by top-level parent (automatic categorization!)
   const categories = {};
@@ -165,15 +210,8 @@ export function discoverPermissionsFromRoles(roles, menuItems = []) {
 
     if (!module || !action) return; // Skip invalid permission keys
 
-    // NEW v3.0: Database lookup via permission_module column
-    const menuItem = findMenuItemByModule(module, menuItems);
-
-    if (!menuItem) {
-      console.warn(`⚠️ [Permission Discovery v3.0] No menu item found for module "${module}" - permission "${permKey}" will be skipped`);
-      return;
-    }
-
-    const menuKey = menuItem.key;
+    // Map permission module to menu key (e.g., 'contacts' → 'crm_contacts')
+    const menuKey = mapModuleToMenuKey(module);
 
     // Find top-level parent via hierarchy traversal
     const topParentKey = parentMap[menuKey] || menuKey; // Fallback to menuKey if not found
@@ -215,7 +253,7 @@ export function discoverPermissionsFromRoles(roles, menuItems = []) {
   });
 
   // Final summary
-  console.log('📦 [Permission Discovery v3.0] Final categories (100% database-driven):', Object.keys(categories));
+  console.log('📦 [Permission Discovery] Final categories (100% dynamic):', Object.keys(categories));
   Object.keys(categories).forEach(key => {
     console.log(`  - ${key}: ${categories[key].permissions.length} permissions (${categories[key].label_en})`);
   });

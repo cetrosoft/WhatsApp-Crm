@@ -62,11 +62,16 @@ export const getAvailableActions = (resource, availablePermissions) => {
     });
   });
 
-  // Convert to array with labels
-  return Array.from(actions).map((action) => ({
-    key: action,
-    label: getActionLabel(action),
-  }));
+  // Convert to array with bilingual labels (v3.0)
+  return Array.from(actions).map((action) => {
+    const labels = getActionLabel(action);
+    return {
+      key: action,
+      label: labels.label_en, // Keep for backward compatibility
+      label_en: labels.label_en,
+      label_ar: labels.label_ar,
+    };
+  });
 };
 
 /**
@@ -173,22 +178,26 @@ export const getPermissionState = (permissionKey, roleDefaults = [], grants = []
 };
 
 /**
- * Get human-readable label for an action
+ * Get human-readable bilingual labels for an action (v3.0)
  * @param {string} action - Action key (e.g., 'view', 'create')
- * @returns {string} Formatted label
+ * @returns {object} Object with label_en and label_ar
  */
 export const getActionLabel = (action) => {
   const labels = {
-    view: 'View',
-    create: 'Create',
-    edit: 'Edit',
-    delete: 'Delete',
-    export: 'Export',
-    invite: 'Invite',
-    manage: 'Manage',
+    view: { label_en: 'View', label_ar: 'عرض' },
+    create: { label_en: 'Create', label_ar: 'إنشاء' },
+    edit: { label_en: 'Edit', label_ar: 'تعديل' },
+    delete: { label_en: 'Delete', label_ar: 'حذف' },
+    export: { label_en: 'Export', label_ar: 'تصدير' },
+    invite: { label_en: 'Invite', label_ar: 'دعوة' },
+    manage: { label_en: 'Manage', label_ar: 'إدارة' },
+    assign: { label_en: 'Assign', label_ar: 'تعيين' },
+    reply: { label_en: 'Reply', label_ar: 'الرد' },
+    send: { label_en: 'Send', label_ar: 'إرسال' },
   };
 
-  return labels[action] || action.charAt(0).toUpperCase() + action.slice(1);
+  const defaultLabel = action.charAt(0).toUpperCase() + action.slice(1);
+  return labels[action] || { label_en: defaultLabel, label_ar: defaultLabel };
 };
 
 /**

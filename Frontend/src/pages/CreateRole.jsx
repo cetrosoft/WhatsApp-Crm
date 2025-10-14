@@ -6,6 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useLanguage } from '../contexts/LanguageContext';
 import { roleAPI, permissionAPI } from '../services/api';
 import { Shield, ArrowLeft, Save } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -14,6 +15,7 @@ import { getModuleIcon } from '../utils/iconMapper';
 
 const CreateRole = () => {
   const { t } = useTranslation(['common', 'settings']);
+  const { isRTL } = useLanguage();
   const navigate = useNavigate();
   const { roleId } = useParams();
   const isEditMode = !!roleId;
@@ -296,7 +298,10 @@ const CreateRole = () => {
                 {availablePermissions?.groups && Object.keys(availablePermissions.groups).map((moduleKey) => {
                   const moduleGroup = availablePermissions.groups[moduleKey];
                   const IconComponent = getModuleIcon(moduleKey, moduleGroup?.icon);
-                  const moduleLabel = moduleGroup?.label || moduleKey;
+                  // Use bilingual label based on current language (v3.0 database-driven!)
+                  const moduleLabel = isRTL
+                    ? (moduleGroup?.label_ar || moduleGroup?.label_en || moduleKey)
+                    : (moduleGroup?.label_en || moduleKey);
 
                   return (
                     <button

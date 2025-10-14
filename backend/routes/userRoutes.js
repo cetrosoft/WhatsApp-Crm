@@ -572,9 +572,10 @@ router.get('/permissions/available', authenticate, setTenantContext, authorize([
 
     // Fetch menu items for bilingual labels (name_en, name_ar) and icons
     // IMPORTANT: parent_key is REQUIRED for hierarchy traversal!
+    // IMPORTANT: permission_module is REQUIRED for v3.0 database-driven categorization!
     const { data: menuItems, error: menuError } = await supabase
       .from('menu_items')
-      .select('key, parent_key, name_en, name_ar, icon, required_permission')
+      .select('key, parent_key, name_en, name_ar, icon, required_permission, permission_module')
       .eq('is_active', true);
 
     if (menuError) {

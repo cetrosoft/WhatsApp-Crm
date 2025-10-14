@@ -6,6 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useLanguage } from '../../contexts/LanguageContext';
 import { useAvailablePermissions } from '../../hooks/usePermissions';
 import { calculateEffectivePermissions } from '../../utils/permissionUtils';
 import PermissionMatrix from './PermissionMatrix';
@@ -19,6 +20,7 @@ const PermissionModal = ({
   onSave
 }) => {
   const { t } = useTranslation(['common']);
+  const { isRTL } = useLanguage();
   const { availablePermissions, loading } = useAvailablePermissions();
   const [selectedPermissions, setSelectedPermissions] = useState([]);
   const [customGrants, setCustomGrants] = useState([]);
@@ -168,9 +170,12 @@ const PermissionModal = ({
                   {availableModules.map((moduleKey, index) => {
                     const moduleGroup = availablePermissions?.groups[moduleKey];
                     const IconComponent = getModuleIcon(moduleKey, moduleGroup?.icon);
-                    const moduleLabel = moduleGroup?.label || moduleKey;
+                    // Use bilingual label based on current language (v3.0 database-driven!)
+                    const moduleLabel = isRTL
+                      ? (moduleGroup?.label_ar || moduleGroup?.label_en || moduleKey)
+                      : (moduleGroup?.label_en || moduleKey);
 
-                    console.log(`🏷️ Rendering tab ${index + 1}:`, moduleKey, 'Icon:', moduleGroup?.icon || 'default', 'Label:', moduleLabel);
+                    console.log(`🏷️ Rendering tab ${index + 1}:`, moduleKey, 'Icon:', moduleGroup?.icon || 'default', 'Label:', moduleLabel, 'isRTL:', isRTL);
 
                     return (
                       <button

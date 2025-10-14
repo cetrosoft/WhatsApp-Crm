@@ -398,6 +398,153 @@ Display: Arabic or English based on user language
 
 ---
 
+### Permission Module Architecture v3.0 (PLANNED - Jan 13, 2025)
+
+**Status:** 📋 Documented, Ready for Implementation
+**Impact:** 🔥 High - Enables Super Admin Capabilities
+**Documentation:** See `docs/PERMISSION_MODULE_ARCHITECTURE_v3.md`
+
+#### What Is This?
+
+A critical architectural improvement to eliminate the last remaining hardcoded configuration in our permission system. By adding a single `permission_module` column to the `menu_items` table, we achieve **truly 100% database-driven permission categorization**.
+
+#### The Problem
+
+Currently, `backend/utils/permissionDiscovery.js` contains two hardcoded mapping functions totaling **66 lines of configuration code**:
+
+```javascript
+// Function 1: mapModuleToMenuKey() - For grouping (42 lines)
+function mapModuleToMenuKey(module) {
+  const moduleToMenu = {
+    'contacts': 'crm_contacts',
+    'companies': 'crm_companies',
+    'deals': 'crm_deals',
+    // ... 13 more hardcoded mappings
+  };
+  return moduleToMenu[module] || module;
+}
+
+// Function 2: mapModuleToLabelMenuKey() - For labels (24 lines)
+function mapModuleToLabelMenuKey(module) {
+  const moduleToLabelMenu = {
+    'contacts': 'crm_contacts',
+    'ticket_categories': 'ticket_settings',
+    'tags': 'tags',
+    // ... 13 more hardcoded mappings
+  };
+  return moduleToLabelMenu[module] || module;
+}
+```
+
+**Issues:**
+- Configuration in code instead of database
+- Adding new modules requires code changes in 2 functions
+- Cannot build Super Admin panel for dynamic module management
+- Violates "single source of truth" principle
+
+#### The Solution
+
+**Add `permission_module` column to `menu_items` table:**
+
+```sql
+ALTER TABLE menu_items
+ADD COLUMN permission_module VARCHAR(100);
+
+-- Example data:
+-- key='crm_contacts', permission_module='contacts'
+-- key='support_tickets', permission_module='tickets'
+-- key='ticket_settings', permission_module='ticket_categories'
+-- key='tags', permission_module='tags'
+```
+
+**Replace hardcoded functions with database lookup:**
+
+```javascript
+// NEW: Single lookup function (replaces both hardcoded functions)
+function findMenuItemByModule(module, menuItems) {
+  return menuItems.find(item => item.permission_module === module) || null;
+}
+
+// Usage in formatPermissionLabel():
+const menuItem = findMenuItemByModule(module, menuItems);
+
+// Usage in discoverPermissionsFromRoles():
+const menuItem = findMenuItemByModule(module, menuItems);
+const menuKey = menuItem.key;
+```
+
+#### Benefits
+
+| Aspect | Before (v2.1) | After (v3.0) | Improvement |
+|--------|--------------|-------------|-------------|
+| Hardcoded config | 66 lines | 0 lines | ✅ -100% |
+| Steps to add module | 5 steps | 1 step | ✅ -80% |
+| Code changes required | Yes | No | ✅ Zero code |
+| Backend restart required | Yes | No | ✅ Hot reload |
+| Super Admin capable | No | Yes | ✅ Enabled |
+
+#### Super Admin Capabilities Enabled
+
+With v3.0, you can build a Super Admin panel that allows:
+
+✅ **100% Dynamic Management:**
+- Add new menu items via UI
+- Link permission modules to menus
+- Change categorization without code
+- Manage permissions graphically
+- Control feature flags per package
+- Reorganize menu structure with drag-drop
+
+**What Still Requires Code:**
+- Page functionality (React components)
+- API endpoints (Express routes)
+- Database tables (SQL migrations)
+
+**Industry Comparison:** This matches the approach used by WordPress, Salesforce, and ServiceNow - configuration is database-driven, functionality requires code.
+
+#### Implementation Plan
+
+**Phase 1: Foundation (Next Session - 2-3 hours)**
+1. Run database migration (add `permission_module` column)
+2. Update `permissionDiscovery.js` (remove 66 lines, add 1 function)
+3. Test permission matrix UI
+4. Verify all existing permissions work
+
+**Phase 2: Super Admin MVP (8 weeks)**
+- Menu Manager component
+- Permission Manager component
+- Module Mapper component
+- Package Manager component
+
+**Phase 3: Advanced Features (12 weeks)**
+- Organization Manager
+- Role Templates
+- Audit Log
+- Permission Testing Tool
+
+**Phase 4: Low-Code Platform (Future)**
+- Page Builder
+- API Gateway
+- Database Schema Designer
+- Rule Engine
+
+#### Related Documentation
+
+- **Technical Details:** `docs/PERMISSION_MODULE_ARCHITECTURE_v3.md` - Complete implementation guide
+- **Super Admin Vision:** `docs/SUPER_ADMIN_VISION.md` - Future capabilities and UI designs
+- **Action Plan:** `docs/NEXT_SESSION_PLAN.md` - Step-by-step implementation checklist
+
+#### Quick Summary
+
+**What:** Add `permission_module` column to `menu_items` table
+**Why:** Eliminate 66 lines of hardcoded config, enable Super Admin
+**How:** Database migration + update 1 backend file
+**When:** Ready to implement in next session
+**Risk:** Low (backward compatible, well-documented)
+**Impact:** Foundation for dynamic module management
+
+---
+
 ### CRM Deals & Tags System (COMPLETE - Oct 12, 2025)
 
 **Architecture Overview:** Junction table design with bilingual tag support + personalized UX
