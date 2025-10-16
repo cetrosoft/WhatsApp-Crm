@@ -113,11 +113,11 @@ const SegmentBuilderModal = ({ isOpen, onClose, segment, onSave }) => {
       ]);
 
       setLookupData({
-        statuses: statusesRes.statuses || [],
-        countries: countriesRes.countries || [],
+        statuses: statusesRes.data || [],
+        countries: countriesRes.data || [],
         users: usersRes.data || usersRes.users || [],
-        tags: tagsRes.tags || [],
-        leadSources: leadSourcesRes.leadSources || []
+        tags: tagsRes.data || [],
+        leadSources: leadSourcesRes.data || []
       });
     } catch (error) {
       console.error('Error loading lookup data:', error);

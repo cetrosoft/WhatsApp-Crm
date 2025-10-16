@@ -105,10 +105,10 @@ const CompanyModal = ({ isOpen, onClose, company, onSave }) => {
       ]);
 
       setLookupData({
-        countries: countriesRes.countries || [],
-        statuses: statusesRes.statuses || [],
+        countries: countriesRes.data || [],
+        statuses: statusesRes.data || [],
         users: usersRes.data || usersRes.users || [],
-        tags: tagsRes.tags || []
+        tags: tagsRes.data || []
       });
     } catch (error) {
       console.error('Error loading lookup data:', error);

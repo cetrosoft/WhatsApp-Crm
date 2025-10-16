@@ -29,7 +29,7 @@ router.get('/', authenticateToken, async (req, res) => {
       return res.status(500).json({ error: 'Failed to fetch lead sources' });
     }
 
-    res.json({ leadSources });
+    res.json({ success: true, data: leadSources });
   } catch (error) {
     console.error('Get lead sources error:', error);
     res.status(500).json({ error: 'Failed to fetch lead sources' });

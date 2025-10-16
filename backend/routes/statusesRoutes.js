@@ -29,7 +29,7 @@ router.get('/contacts', authenticateToken, async (req, res) => {
       return res.status(500).json({ error: 'Failed to fetch contact statuses' });
     }
 
-    res.json({ statuses });
+    res.json({ success: true, data: statuses });
   } catch (error) {
     console.error('Get contact statuses error:', error);
     res.status(500).json({ error: 'Failed to fetch contact statuses' });
@@ -54,7 +54,7 @@ router.get('/companies', authenticateToken, async (req, res) => {
       return res.status(500).json({ error: 'Failed to fetch company statuses' });
     }
 
-    res.json({ statuses });
+    res.json({ success: true, data: statuses });
   } catch (error) {
     console.error('Get company statuses error:', error);
     res.status(500).json({ error: 'Failed to fetch company statuses' });

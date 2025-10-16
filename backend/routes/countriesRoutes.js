@@ -27,7 +27,7 @@ router.get('/', async (req, res) => {
       return res.status(500).json({ error: 'Failed to fetch countries' });
     }
 
-    res.json({ countries });
+    res.json({ success: true, data: countries });
   } catch (error) {
     console.error('Get countries error:', error);
     res.status(500).json({ error: 'Failed to fetch countries' });
@@ -52,7 +52,7 @@ router.get('/:code', async (req, res) => {
       return res.status(404).json({ error: 'Country not found' });
     }
 
-    res.json({ country });
+    res.json({ success: true, data: country });
   } catch (error) {
     console.error('Get country error:', error);
     res.status(500).json({ error: 'Failed to fetch country' });
