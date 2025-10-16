@@ -5,10 +5,12 @@ import { Toaster } from "react-hot-toast";
 // Contexts
 import { LanguageProvider } from "./contexts/LanguageContext";
 import { AuthProvider } from "./contexts/AuthContext";
+import { SuperAdminProvider } from "./contexts/SuperAdminContext";
 
 // Components
 import DashboardLayout from "./components/layout/DashboardLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
+import SuperAdminProtectedRoute from "./components/SuperAdminProtectedRoute";
 import PermissionRoute from "./components/PermissionRoute";
 
 // Pages - Auth
@@ -43,6 +45,14 @@ import UserProfile from "./pages/UserProfile";
 // Debug Pages
 import DebugPermissions from "./pages/DebugPermissions";
 
+// Super Admin Pages
+import SuperAdminLayout from "./components/SuperAdmin/SuperAdminLayout";
+import SuperAdminLogin from "./pages/SuperAdmin/SuperAdminLogin";
+import SuperAdminDashboard from "./pages/SuperAdmin/SuperAdminDashboard";
+import Organizations from "./pages/SuperAdmin/Organizations";
+import Packages from "./pages/SuperAdmin/Packages";
+import Menus from "./pages/SuperAdmin/Menus";
+
 import menuConfig from "./menuConfig";
 
 // Map between component names and actual code
@@ -54,7 +64,7 @@ const componentsMap = {
   AccountSettings,
 };
 
-// Main Layout for Protected Pages
+// Main Layout for Organization Protected Pages
 const MainLayout = () => {
   return (
     <DashboardLayout>
@@ -190,36 +200,98 @@ const MainLayout = () => {
   );
 };
 
+// Super Admin Layout for Platform Administration
+const SuperAdminLayoutWrapper = () => {
+  return (
+    <SuperAdminLayout>
+      <Routes>
+        {/* Super Admin Dashboard */}
+        <Route path="/dashboard" element={<SuperAdminDashboard />} />
+
+        {/* Organizations Management */}
+        <Route path="/organizations" element={<Organizations />} />
+
+        {/* Package Management */}
+        <Route path="/packages" element={<Packages />} />
+
+        {/* Menu Management */}
+        <Route path="/menus" element={<Menus />} />
+
+        {/* TODO: Add more super admin routes as needed */}
+        {/* <Route path="/activity" element={<ActivityLogs />} /> */}
+
+        {/* Default redirect */}
+        <Route path="/" element={<Navigate to="/super-admin/dashboard" replace />} />
+      </Routes>
+    </SuperAdminLayout>
+  );
+};
+
 export default function App() {
   return (
     <Router>
-      <AuthProvider>
-        <LanguageProvider>
-          {/* Toast Notifications */}
-          <Toaster position="top-center" />
+      {/* Toast Notifications - Global */}
+      <Toaster position="top-center" />
 
-          <Routes>
-            {/* Public Routes */}
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/accept-invitation" element={<AcceptInvitation />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
+      <Routes>
+        {/* ============================================ */}
+        {/* SUPER ADMIN ROUTES (Separate Auth System) */}
+        {/* ============================================ */}
+        <Route
+          path="/super-admin/*"
+          element={
+            <SuperAdminProvider>
+              <Routes>
+                {/* Super Admin Login (Public) */}
+                <Route path="/login" element={<SuperAdminLogin />} />
 
-            {/* Protected Routes */}
-            <Route
-              path="/*"
-              element={
-                <ProtectedRoute>
-                  <MainLayout />
-                </ProtectedRoute>
-              }
-            />
+                {/* Super Admin Protected Routes */}
+                <Route
+                  path="/*"
+                  element={
+                    <SuperAdminProtectedRoute>
+                      <SuperAdminLayoutWrapper />
+                    </SuperAdminProtectedRoute>
+                  }
+                />
+              </Routes>
+            </SuperAdminProvider>
+          }
+        />
 
-            {/* Default Redirect */}
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          </Routes>
-        </LanguageProvider>
-      </AuthProvider>
+        {/* ============================================ */}
+        {/* ORGANIZATION ROUTES (Standard Auth System) */}
+        {/* ============================================ */}
+        <Route
+          path="/*"
+          element={
+            <AuthProvider>
+              <LanguageProvider>
+                <Routes>
+                  {/* Public Routes */}
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/register" element={<Register />} />
+                  <Route path="/accept-invitation" element={<AcceptInvitation />} />
+                  <Route path="/reset-password" element={<ResetPassword />} />
+
+                  {/* Protected Routes */}
+                  <Route
+                    path="/*"
+                    element={
+                      <ProtectedRoute>
+                        <MainLayout />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  {/* Default Redirect */}
+                  <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                </Routes>
+              </LanguageProvider>
+            </AuthProvider>
+          }
+        />
+      </Routes>
     </Router>
   );
 }

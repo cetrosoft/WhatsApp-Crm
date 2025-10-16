@@ -1,6 +1,45 @@
-# Reusable Components Catalog
+# 📦 Reusable Components Catalog
 
-This document catalogs all reusable components available for building new modules and pages.
+Complete catalog of all reusable components available for building new modules and pages.
+
+**Total Components:** 39
+**Modules Documented:** 6 (Shared, Tickets, Deals, Contacts, Companies, Segments, Team)
+**Status:** Production Ready ✅
+
+---
+
+## 📚 Module Documentation
+
+Detailed component documentation has been organized into module-specific files for better performance and maintainability:
+
+### 🎫 [Tickets Module Components](COMPONENTS_TICKETS.md)
+**8 Components:** TicketListView, TicketKanbanView, TicketModal, TicketFormFields, TicketFilters, TicketStatusBadge, TicketPriorityBadge, TicketCategoryBadge
+
+**Key Features:** Dual view (Kanban + List), 9 advanced filters, overdue detection, 5 status states, 4 priority levels, bilingual categories
+
+---
+
+### 💼 [Deals Module Components](COMPONENTS_DEALS.md)
+**12 Components:** DealModal, DealFormFields, DealListView, DealCard, FilterPanel, KanbanColumn, QuickAddDealCard, QuickAddFormFields, ContactSearchDropdown, DealsHeader, DealsKanban, DealsGroupBy
+
+**Key Features:** Drag-and-drop Kanban, dual view toggle, 7 filter types, 6 grouping options, quick-add form, contact autocomplete, pipeline management
+
+---
+
+### 👥 [CRM Components](COMPONENTS_CRM.md)
+**11 Components:** Contacts (3), Companies (5), Segments (3)
+
+**Key Features:**
+- **Contacts:** Table view, advanced filters, form fields with phone validation
+- **Companies:** Card/List toggle, 3-tab form (Basic, Legal, Location), logo upload
+- **Segments:** Visual filter builder, AND/OR logic, bilingual support, contact counts
+
+---
+
+### 🏢 [Team Module Components](COMPONENTS_TEAM.md)
+**3 Components:** RoleCard, DeleteRoleModal, UserPermissionsList
+
+**Key Features:** Custom role management, permission override display, system role protection, user count warnings, duplicate functionality
 
 ---
 
@@ -143,442 +182,6 @@ Components that can be used across any module without dependencies.
 
 ---
 
-## 💼 Deals Module Components
-
-### ContactSearchDropdown
-**Location:** `components/Deals/ContactSearchDropdown.jsx`
-**Purpose:** Searchable contact dropdown with autocomplete and "create new" option
-**Props:**
-- `value` - Contact name string
-- `onChange` - Callback function (receives object with contactName, contactId, email, phone, phone_country_code)
-- `onContactSearch` - Async function to search contacts
-- `disabled` - Disabled state
-- `error` - Error message
-
-**Usage:**
-```jsx
-<ContactSearchDropdown
-  value={contactName}
-  onChange={(data) => setFormData({...formData, ...data})}
-  onContactSearch={async (term) => await searchContacts(term)}
-  error={errors.contact}
-/>
-```
-
----
-
-### QuickAddFormFields
-**Location:** `components/Deals/QuickAddFormFields.jsx`
-**Purpose:** Grouped form fields for quick deal creation (title, phone, email, revenue)
-**Props:**
-- `formData` - Form data object
-- `onChange` - Callback function (receives partial update object)
-- `errors` - Error object
-- `disabled` - Disabled state
-
-**Usage:**
-```jsx
-<QuickAddFormFields
-  formData={formData}
-  onChange={(updates) => setFormData({...formData, ...updates})}
-  errors={errors}
-  disabled={saving}
-/>
-```
-
----
-
-### DealFormFields
-**Location:** `components/Deals/DealFormFields.jsx`
-**Purpose:** Complete deal form fields including pipeline, stage, contacts, companies, tags
-**Props:**
-- `formData` - Form data object
-- `handleChange` - Change handler
-- `errors` - Error object
-- `pipeline` - Pipeline object
-- `stages` - Array of stages
-- `contacts` - Array of contacts
-- `companies` - Array of companies
-- `users` - Array of users
-- `tags` - Array of tags
-- `tagInput` - Tag input value
-- `setTagInput` - Tag input setter
-- `handleTagKeyDown` - Tag input key handler
-- `addTag` - Add tag function
-- `removeTag` - Remove tag function
-- `loadingDropdowns` - Loading state
-
-**Usage:**
-```jsx
-<DealFormFields
-  formData={formData}
-  handleChange={handleChange}
-  errors={errors}
-  pipeline={pipeline}
-  stages={stages}
-  contacts={contacts}
-  companies={companies}
-  users={users}
-  tags={tags}
-  tagInput={tagInput}
-  setTagInput={setTagInput}
-  handleTagKeyDown={handleTagKeyDown}
-  addTag={addTag}
-  removeTag={removeTag}
-  loadingDropdowns={loading}
-/>
-```
-
----
-
-### DealListView
-**Location:** `components/Deals/DealListView.jsx`
-**Purpose:** Table layout for displaying deals with all key information
-**Props:**
-- `deals` - Array of deal objects
-- `stages` - Array of stage objects
-- `tags` - Array of tag objects
-- `onEdit` - Edit callback
-- `onDelete` - Delete callback
-- `deletingId` - ID of deal being deleted
-
-**Usage:**
-```jsx
-<DealListView
-  deals={deals}
-  stages={stages}
-  tags={tags}
-  onEdit={handleEdit}
-  onDelete={handleDelete}
-  deletingId={deletingId}
-/>
-```
-
----
-
-## 👥 Contacts Module Components
-
-### ContactsTable
-**Location:** `components/Contacts/ContactsTable.jsx`
-**Purpose:** Contacts data table with actions
-**Props:**
-- `contacts` - Array of contact objects
-- `onEdit` - Edit callback
-- `onDelete` - Delete callback
-- `getStatusBadge` - Function to render status badge
-- `getCountryDisplay` - Function to get country display
-- `loading` - Loading state
-
-**Usage:**
-```jsx
-<ContactsTable
-  contacts={contacts}
-  onEdit={handleEdit}
-  onDelete={handleDelete}
-  getStatusBadge={(status) => <span>{status}</span>}
-  getCountryDisplay={(country) => country.name}
-  loading={loading}
-/>
-```
-
----
-
-### ContactsFilters
-**Location:** `components/Contacts/ContactsFilters.jsx`
-**Purpose:** Contact filtering panel with search, tags, status, lead source
-**Props:**
-- `searchTerm` - Search value
-- `onSearchChange` - Search change handler
-- `tagFilter` - Selected tag IDs
-- `onTagFilterChange` - Tag filter change handler
-- `statusFilter` - Selected status ID
-- `onStatusFilterChange` - Status filter change handler
-- `leadSourceFilter` - Selected lead source
-- `onLeadSourceFilterChange` - Lead source filter change handler
-- `tags` - Array of tags
-- `statuses` - Array of statuses
-- `leadSources` - Array of lead sources
-- `loading` - Loading state
-
-**Usage:**
-```jsx
-<ContactsFilters
-  searchTerm={search}
-  onSearchChange={setSearch}
-  tagFilter={selectedTags}
-  onTagFilterChange={setSelectedTags}
-  tags={tags}
-  statuses={statuses}
-  leadSources={leadSources}
-/>
-```
-
----
-
-### ContactFormFields
-**Location:** `components/Contacts/ContactFormFields.jsx`
-**Purpose:** Contact form fields (name, email, phone, etc.)
-**Props:**
-- `formData` - Form data object
-- `handleChange` - Change handler
-- `handlePhoneChange` - Phone change handler
-- `errors` - Error object
-- `lookupData` - Lookup data (statuses, countries, sources, users, tags)
-
-**Usage:**
-```jsx
-<ContactFormFields
-  formData={formData}
-  handleChange={handleChange}
-  handlePhoneChange={handlePhoneChange}
-  errors={errors}
-  lookupData={lookupData}
-/>
-```
-
----
-
-## 🏢 Companies Module Components
-
-### CompanyBasicTab
-**Location:** `components/Companies/CompanyBasicTab.jsx`
-**Purpose:** Basic company info tab (logo, name, industry, status, tags)
-**Props:**
-- `formData` - Form data object
-- `setFormData` - Form data setter
-- `lookupData` - Lookup data (statuses, tags)
-- `uploading` - Upload state
-- `handleLogoUpload` - Logo upload handler
-
-**Usage:**
-```jsx
-<CompanyBasicTab
-  formData={formData}
-  setFormData={setFormData}
-  lookupData={lookupData}
-  uploading={uploading}
-  handleLogoUpload={handleLogoUpload}
-/>
-```
-
----
-
-### CompanyLegalTab
-**Location:** `components/Companies/CompanyLegalTab.jsx`
-**Purpose:** Legal company info tab (tax ID, commercial ID, documents)
-**Props:**
-- `formData` - Form data object
-- `setFormData` - Form data setter
-- `uploading` - Upload state
-- `handleDocumentUpload` - Document upload handler
-- `handleDeleteDocument` - Document delete handler
-
-**Usage:**
-```jsx
-<CompanyLegalTab
-  formData={formData}
-  setFormData={setFormData}
-  uploading={uploading}
-  handleDocumentUpload={handleDocumentUpload}
-  handleDeleteDocument={handleDeleteDocument}
-/>
-```
-
----
-
-### CompanyLocationTab
-**Location:** `components/Companies/CompanyLocationTab.jsx`
-**Purpose:** Company location tab (address, city, country, notes)
-**Props:**
-- `formData` - Form data object
-- `setFormData` - Form data setter
-- `lookupData` - Lookup data (countries)
-
-**Usage:**
-```jsx
-<CompanyLocationTab
-  formData={formData}
-  setFormData={setFormData}
-  lookupData={lookupData}
-/>
-```
-
----
-
-### CompanyCardView
-**Location:** `components/Companies/CompanyCardView.jsx`
-**Purpose:** Company card grid view with logo, stats, actions
-**Props:**
-- `companies` - Array of company objects
-- `onEdit` - Edit callback
-- `onDelete` - Delete callback
-- `getStatusBadge` - Function to render status badge
-
-**Usage:**
-```jsx
-<CompanyCardView
-  companies={companies}
-  onEdit={handleEdit}
-  onDelete={handleDelete}
-  getStatusBadge={(status) => <span>{status}</span>}
-/>
-```
-
----
-
-### CompanyListView
-**Location:** `components/Companies/CompanyListView.jsx`
-**Purpose:** Company list/table view
-**Props:**
-- `companies` - Array of company objects
-- `onEdit` - Edit callback
-- `onDelete` - Delete callback
-- `getStatusBadge` - Function to render status badge
-
-**Usage:**
-```jsx
-<CompanyListView
-  companies={companies}
-  onEdit={handleEdit}
-  onDelete={handleDelete}
-  getStatusBadge={(status) => <span>{status}</span>}
-/>
-```
-
----
-
-## 🎯 Segments Module Components
-
-### SegmentHeader
-**Location:** `components/Segments/SegmentHeader.jsx`
-**Purpose:** Segment name and description fields (bilingual)
-**Props:**
-- `formData` - Form data object (name_en, name_ar, description_en, description_ar)
-- `onChange` - Callback function
-
-**Usage:**
-```jsx
-<SegmentHeader
-  formData={formData}
-  onChange={setFormData}
-/>
-```
-
----
-
-### SegmentValueInput
-**Location:** `components/Segments/SegmentValueInput.jsx`
-**Purpose:** Dynamic value input based on field type (status, country, tags, date, etc.)
-**Props:**
-- `condition` - Condition object (field, operator, value)
-- `index` - Condition index
-- `lookupData` - Lookup data (statuses, countries, users, tags, leadSources)
-- `onUpdate` - Update callback (index, field, value)
-
-**Usage:**
-```jsx
-<SegmentValueInput
-  condition={condition}
-  index={0}
-  lookupData={lookupData}
-  onUpdate={(index, field, value) => updateCondition(index, field, value)}
-/>
-```
-
----
-
-### SegmentConditionRow
-**Location:** `components/Segments/SegmentConditionRow.jsx`
-**Purpose:** Single filter condition row (field, operator, value) with remove button
-**Props:**
-- `condition` - Condition object
-- `index` - Condition index
-- `fieldOptions` - Array of field options
-- `getOperatorOptions` - Function to get operators for field
-- `lookupData` - Lookup data
-- `onUpdate` - Update callback
-- `onRemove` - Remove callback
-
-**Usage:**
-```jsx
-<SegmentConditionRow
-  condition={condition}
-  index={0}
-  fieldOptions={fieldOptions}
-  getOperatorOptions={getOperatorOptions}
-  lookupData={lookupData}
-  onUpdate={updateCondition}
-  onRemove={removeCondition}
-/>
-```
-
----
-
-## 👤 Team Module Components
-
-### RoleCard
-**Location:** `components/Team/RoleCard.jsx`
-**Purpose:** Role card with badge, stats, and action buttons
-**Props:**
-- `role` - Role object (id, name, slug, is_system, user_count, permission_count)
-- `onEdit` - Edit callback
-- `onDuplicate` - Duplicate callback
-- `onDelete` - Delete callback
-- `duplicating` - ID of role being duplicated
-- `getRoleBadgeColor` - Function to get badge color
-
-**Usage:**
-```jsx
-<RoleCard
-  role={role}
-  onEdit={handleEdit}
-  onDuplicate={handleDuplicate}
-  onDelete={handleDelete}
-  duplicating={duplicatingId}
-  getRoleBadgeColor={(slug) => 'bg-blue-100'}
-/>
-```
-
----
-
-### DeleteRoleModal
-**Location:** `components/Team/DeleteRoleModal.jsx`
-**Purpose:** Delete confirmation dialog for roles
-**Props:**
-- `role` - Role object to delete
-- `onConfirm` - Confirm callback (receives roleId)
-- `onCancel` - Cancel callback
-- `deleting` - Deleting state
-
-**Usage:**
-```jsx
-<DeleteRoleModal
-  role={selectedRole}
-  onConfirm={handleDelete}
-  onCancel={() => setSelectedRole(null)}
-  deleting={deleting}
-/>
-```
-
----
-
-### UserPermissionsList
-**Location:** `components/Team/UserPermissionsList.jsx`
-**Purpose:** List of users with custom permissions (grants/revokes)
-**Props:**
-- `users` - Array of user objects with permissions
-- `onManagePermissions` - Callback to manage user permissions
-
-**Usage:**
-```jsx
-<UserPermissionsList
-  users={usersWithCustomPermissions}
-  onManagePermissions={handleManagePermissions}
-/>
-```
-
----
-
 ## 🔧 Utilities
 
 ### filterUtils.js
@@ -600,24 +203,171 @@ const activeCount = countActiveFilters(filters);
 
 ---
 
-## 📝 Notes
+## 📝 Design System
 
-- **Bilingual Support:** Most components support Arabic/English via `i18n.language`
-- **RTL Support:** Components handle RTL layout automatically
-- **Error Handling:** Components accept `error` prop for validation messages
-- **Loading States:** Components accept `loading` or `disabled` props
-- **Styling:** All components use Tailwind CSS utility classes
+### Common Patterns
+
+**Bilingual Support:**
+```javascript
+const isRTL = i18n.language === 'ar';
+const displayName = isRTL && item.name_ar ? item.name_ar : item.name_en;
+```
+
+**Date Formatting (Gregorian):**
+```javascript
+// Force Gregorian calendar (prevents Hijri in Arabic)
+date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+```
+
+**Color with Opacity:**
+```javascript
+const hexToRgba = (hex, opacity) => {
+  hex = hex.replace('#', '');
+  const r = parseInt(hex.substring(0, 2), 16);
+  const g = parseInt(hex.substring(2, 4), 16);
+  const b = parseInt(hex.substring(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+};
+```
+
+**RTL-Aware Styling:**
+```javascript
+// Use logical properties (auto-switch with direction)
+className="ms-4 me-2 ps-3 pe-1" // Instead of ml-4 mr-2 pl-3 pr-1
+```
 
 ---
 
-## 🚀 Quick Start
+## 🎨 Component Guidelines
 
-1. **Import from shared barrel:** `import { SearchableSelect } from '@/components/shared'`
-2. **Check props:** Review this file for required/optional props
-3. **Copy usage example:** Start with the example and customize
-4. **Test with your data:** Components are designed to be data-agnostic
+### Props Best Practices
+
+1. **Data Props:** `items`, `data`, `options` (arrays/objects)
+2. **Action Props:** `onSave`, `onEdit`, `onDelete`, `onChange` (callbacks)
+3. **State Props:** `loading`, `saving`, `disabled`, `error` (booleans/strings)
+4. **Display Props:** `label`, `placeholder`, `icon`, `className` (strings/components)
+
+### Callback Signatures
+
+```javascript
+// Simple callbacks (no data)
+onClose={() => void}
+
+// Single ID callbacks
+onEdit((itemId: string) => void)
+
+// Full object callbacks
+onSave((item: object) => void)
+
+// Multi-parameter callbacks
+onChange((key: string, value: any) => void)
+```
+
+### Error Handling
+
+```javascript
+// Component prop
+<Input error={errors.email} />
+
+// Component implementation
+{error && (
+  <p className="text-sm text-red-600 mt-1">{error}</p>
+)}
+```
+
+### Loading States
+
+```javascript
+// Button with loading
+<button disabled={loading}>
+  {loading ? 'Saving...' : 'Save'}
+</button>
+
+// Dropdown with loading
+<SearchableSelect loading={loading} />
+
+// Table with loading
+{loading ? <Spinner /> : <Table data={data} />}
+```
+
+---
+
+## 🚀 Quick Start Guide
+
+### 1. Find the Right Component
+
+Browse module-specific docs:
+- **Forms & Modals:** Check Deals or Tickets docs
+- **Tables & Views:** Check CRM docs (Contacts, Companies)
+- **Filters:** Check Deals FilterPanel or Tickets TicketFilters
+- **Badges & Tags:** Check Tickets or Deals docs
+
+### 2. Import the Component
+
+```javascript
+// Shared components
+import { SearchableSelect } from '../components/SearchableSelect';
+
+// Module components (barrel export)
+import { TicketModal, TicketFilters } from '../components/Tickets';
+import { DealCard, KanbanColumn } from '../components/Deals';
+import { ContactsTable } from '../components/Contacts';
+```
+
+### 3. Copy Usage Example
+
+Each component doc includes working examples with props.
+
+### 4. Customize for Your Module
+
+- Replace data props with your module's data
+- Update callbacks to match your handlers
+- Adjust styling with className prop if needed
+
+---
+
+## 📊 Component Statistics
+
+| Category | Components | Documentation |
+|----------|------------|---------------|
+| Shared/Universal | 7 | ✅ This file |
+| Tickets | 8 | ✅ [COMPONENTS_TICKETS.md](COMPONENTS_TICKETS.md) |
+| Deals | 12 | ✅ [COMPONENTS_DEALS.md](COMPONENTS_DEALS.md) |
+| CRM (Contacts, Companies, Segments) | 11 | ✅ [COMPONENTS_CRM.md](COMPONENTS_CRM.md) |
+| Team | 3 | ✅ [COMPONENTS_TEAM.md](COMPONENTS_TEAM.md) |
+| **Total** | **39** | **100% Complete** |
+
+---
+
+## 🎯 Architecture Principles
+
+### 1. Database-Driven
+All dynamic content (menu, permissions, roles) comes from Supabase tables, not hardcoded constants.
+
+### 2. Bilingual by Default
+Components support Arabic (RTL) and English (LTR) with `i18n.language` detection.
+
+### 3. Permission-Aware
+Components accept `canEdit`, `canDelete` props to conditionally render actions.
+
+### 4. Reusable & Composable
+Components are designed to be data-agnostic and composable into larger views.
+
+### 5. Consistent Patterns
+Shared prop signatures, callback patterns, and styling conventions across all modules.
+
+---
+
+## 🔗 Related Documentation
+
+- [Database-Driven Architecture](../DATABASE_DRIVEN_ARCHITECTURE.md) - System architecture overview
+- [Permission Module v3.0](../PERMISSION_MODULE_ARCHITECTURE_v3.md) - Permission system details
+- [Add New Module Guide](../ADD_NEW_MODULE_DYNAMIC.md) - Step-by-step module creation
+- [i18n Guide](../I18N_GUIDE.md) - Internationalization patterns
+- [Frontend README](README.md) - Frontend documentation index
 
 ---
 
 **Last Updated:** January 2025
-**Total Components:** 23 reusable components
+**Maintainer:** Development Team
+**Total Components:** 39 reusable components across 6 modules

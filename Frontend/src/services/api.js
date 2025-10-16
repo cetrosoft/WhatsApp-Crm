@@ -48,6 +48,21 @@ const apiCall = async (endpoint, options = {}) => {
 
   try {
     const response = await fetch(`${API_URL}${endpoint}`, config);
+
+    // Check if response is JSON before parsing
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      const error = new Error(
+        `Expected JSON but got ${contentType || 'unknown content type'}. ` +
+        `Is the backend running on ${API_URL}?`
+      );
+      error.response = {
+        status: response.status,
+        data: { message: 'Backend server not responding with JSON' }
+      };
+      throw error;
+    }
+
     const data = await response.json();
 
     if (!response.ok) {
@@ -66,7 +81,7 @@ const apiCall = async (endpoint, options = {}) => {
     if (!error.response && error instanceof TypeError) {
       error.response = {
         status: 0,
-        data: { message: 'Network error' }
+        data: { message: 'Network error - Cannot connect to backend server' }
       };
     }
     console.error('API Error:', error);

@@ -91,11 +91,12 @@ const Tickets = () => {
    * Get Group By options with labels
    */
   const getGroupByOptions = () => {
+    const prefix = isRTL ? 'التصنيف حسب' : 'Categories by';
     return [
-      { value: 'status', label: t('filterByStatus'), icon: '📊' },
-      { value: 'priority', label: t('filterByPriority'), icon: '⚡' },
-      { value: 'category', label: t('filterByCategory'), icon: '📁' },
-      { value: 'assignedTo', label: t('filterByAssignee'), icon: '👤' },
+      { value: 'status', label: `${prefix} ${t('status')}`, icon: '📊' },
+      { value: 'priority', label: `${prefix} ${t('priority')}`, icon: '⚡' },
+      { value: 'category', label: `${prefix} ${t('category')}`, icon: '📁' },
+      { value: 'assignedTo', label: `${prefix} ${t('assignee')}`, icon: '👤' },
     ];
   };
 
@@ -293,7 +294,22 @@ const Tickets = () => {
     try {
       setLoading(true);
       const response = await ticketAPI.getTickets();
-      setTickets(response.tickets || []);
+
+      // Transform ticket data to match component expectations
+      const transformedTickets = (response.data || []).map(ticket => {
+        // Transform tags from nested structure to flat arrays
+        const tagData = ticket.ticket_tags || [];
+        const tags = tagData.map(tt => tt.tag_id).filter(Boolean);
+        const tag_details = tagData.map(tt => tt.tags).filter(Boolean);
+
+        return {
+          ...ticket,
+          tags,
+          tag_details
+        };
+      });
+
+      setTickets(transformedTickets);
     } catch (error) {
       console.error('Error loading tickets:', error);
       toast.error(t('failedToLoad', { resource: t('tickets') }));
@@ -308,7 +324,7 @@ const Tickets = () => {
   const loadCategories = async () => {
     try {
       const response = await ticketAPI.getCategories();
-      setCategories(response.categories || []);
+      setCategories(response.data || []);
     } catch (error) {
       console.error('Error loading categories:', error);
     }
@@ -463,50 +479,50 @@ const Tickets = () => {
 
         {/* Stats Row */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-          <div className="bg-white border border-gray-200 p-3 rounded-lg">
+          <div className="bg-white border border-gray-200 p-2 rounded-lg">
             <div className="flex items-center gap-2">
-              <div className="p-2 bg-blue-100 rounded">
-                <TicketIcon className="w-4 h-4 text-blue-600" />
+              <div className="p-1.5 bg-blue-100 rounded">
+                <TicketIcon className="w-3.5 h-3.5 text-blue-600" />
               </div>
               <div>
                 <p className="text-xs text-gray-600">{t('tickets')}</p>
-                <p className="text-lg font-bold text-gray-900">{stats.total}</p>
+                <p className="text-base font-bold text-gray-900">{stats.total}</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white border border-gray-200 p-3 rounded-lg">
+          <div className="bg-white border border-gray-200 p-2 rounded-lg">
             <div className="flex items-center gap-2">
-              <div className="p-2 bg-blue-100 rounded">
-                <AlertCircle className="w-4 h-4 text-blue-600" />
+              <div className="p-1.5 bg-blue-100 rounded">
+                <AlertCircle className="w-3.5 h-3.5 text-blue-600" />
               </div>
               <div>
                 <p className="text-xs text-gray-600">{t('statusOpen')}</p>
-                <p className="text-lg font-bold text-gray-900">{stats.open}</p>
+                <p className="text-base font-bold text-gray-900">{stats.open}</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white border border-gray-200 p-3 rounded-lg">
+          <div className="bg-white border border-gray-200 p-2 rounded-lg">
             <div className="flex items-center gap-2">
-              <div className="p-2 bg-yellow-100 rounded">
-                <AlertCircle className="w-4 h-4 text-yellow-600" />
+              <div className="p-1.5 bg-yellow-100 rounded">
+                <AlertCircle className="w-3.5 h-3.5 text-yellow-600" />
               </div>
               <div>
                 <p className="text-xs text-gray-600">{t('statusInProgress')}</p>
-                <p className="text-lg font-bold text-gray-900">{stats.inProgress}</p>
+                <p className="text-base font-bold text-gray-900">{stats.inProgress}</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white border border-gray-200 p-3 rounded-lg">
+          <div className="bg-white border border-gray-200 p-2 rounded-lg">
             <div className="flex items-center gap-2">
-              <div className="p-2 bg-red-100 rounded">
-                <AlertCircle className="w-4 h-4 text-red-600" />
+              <div className="p-1.5 bg-red-100 rounded">
+                <AlertCircle className="w-3.5 h-3.5 text-red-600" />
               </div>
               <div>
                 <p className="text-xs text-gray-600">{t('overdue')}</p>
-                <p className="text-lg font-bold text-gray-900">{stats.overdue}</p>
+                <p className="text-base font-bold text-gray-900">{stats.overdue}</p>
               </div>
             </div>
           </div>

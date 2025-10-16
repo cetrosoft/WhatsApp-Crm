@@ -25,6 +25,20 @@ import tagRoutes from './routes/tagRoutes.js';
 import leadSourcesRoutes from './routes/leadSourcesRoutes.js';
 import menuRoutes from './routes/menuRoutes.js';
 
+// Super Admin Routes
+import superAdminAuthRoutes from './routes/superAdminAuthRoutes.js';
+import superAdminOrgRoutes from './routes/superAdminOrgRoutes.js';
+import superAdminStatsRoutes from './routes/superAdminStatsRoutes.js';
+import superAdminPackageRoutes from './routes/superAdminPackageRoutes.js';
+import superAdminMenuRoutes from './routes/superAdminMenuRoutes.js';
+
+// Verify super admin routes loaded successfully
+console.log('✅ Super Admin Routes loaded:', {
+  auth: !!superAdminAuthRoutes,
+  org: !!superAdminOrgRoutes,
+  stats: !!superAdminStatsRoutes
+});
+
 // CRM Routes
 import contactRoutes from './routes/contactRoutes.js';
 import companyRoutes from './routes/companyRoutes.js';
@@ -62,6 +76,22 @@ app.use(socketMiddleware);
 // });
 
 // API Routes
+
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    routes: {
+      superAdmin: {
+        auth: !!superAdminAuthRoutes,
+        org: !!superAdminOrgRoutes,
+        stats: !!superAdminStatsRoutes
+      }
+    }
+  });
+});
+
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/roles', roleRoutes);
@@ -72,6 +102,13 @@ app.use('/api/statuses', statusesRoutes);
 app.use('/api/tags', tagRoutes);
 app.use('/api/lead-sources', leadSourcesRoutes);
 app.use('/api/menu', menuRoutes);
+
+// Super Admin Routes (Platform-level administration)
+app.use('/api/super-admin', superAdminAuthRoutes);
+app.use('/api/super-admin/organizations', superAdminOrgRoutes);
+app.use('/api/super-admin/stats', superAdminStatsRoutes);
+app.use('/api/super-admin/packages', superAdminPackageRoutes);
+app.use('/api/super-admin/menus', superAdminMenuRoutes);
 
 // CRM Routes
 app.use('/api/crm/contacts', contactRoutes);

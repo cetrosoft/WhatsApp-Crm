@@ -211,7 +211,7 @@ const TicketKanbanView = ({
     const ticketsInColumn = getTicketsByGroup(column.id);
 
     return (
-      <div className="flex-shrink-0 w-80">
+      <div className="flex-shrink-0 w-64">
         {/* Column Header */}
         <div className="bg-white rounded-lg border-2 border-gray-200 p-4 mb-3">
           <div className="flex items-center justify-between mb-2">

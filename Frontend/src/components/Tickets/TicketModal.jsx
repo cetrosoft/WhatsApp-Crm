@@ -63,9 +63,9 @@ const TicketModal = ({ ticket, onSave, onClose }) => {
           tagAPI.getTags(),
         ]);
 
-        setCategories(categoriesRes.categories || []);
+        setCategories(categoriesRes.data || []);
         setContacts(contactsRes.data || []);
-        setCompanies(companiesRes.data || []);
+        setCompanies(companiesRes.companies || []);
         setDeals(dealsRes.data || []);
         setUsers(usersRes.users || []);
         setTags(tagsRes.tags || []);
