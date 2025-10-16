@@ -137,7 +137,7 @@ router.get('/', async (req, res) => {
 
     res.json({
       success: true,
-      pipelines: pipelinesWithCounts
+      data: pipelinesWithCounts
     });
   } catch (error) {
     console.error('Error fetching pipelines:', error);
@@ -582,7 +582,7 @@ router.get('/:id/deals', async (req, res) => {
 
     res.json({
       success: true,
-      deals: dealsWithTags
+      data: dealsWithTags
     });
   } catch (error) {
     console.error('Error fetching pipeline deals:', error);

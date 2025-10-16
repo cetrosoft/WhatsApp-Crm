@@ -64,10 +64,16 @@ router.get('/', authenticate, setTenantContext, async (req, res) => {
       };
     });
 
-    res.json({ users: formattedUsers });
+    res.json({
+      success: true,
+      data: formattedUsers
+    });
   } catch (error) {
     console.error('Get users error:', error);
-    res.status(500).json({ error: 'Failed to fetch users' });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch users'
+    });
   }
 });
 
@@ -184,10 +190,16 @@ router.get('/invitations', authenticate, setTenantContext, authorize(['admin', '
       throw error;
     }
 
-    res.json({ invitations });
+    res.json({
+      success: true,
+      data: invitations
+    });
   } catch (error) {
     console.error('Get invitations error:', error);
-    res.status(500).json({ error: 'Failed to fetch invitations' });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch invitations'
+    });
   }
 });
 

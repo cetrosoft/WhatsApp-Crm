@@ -76,10 +76,16 @@ router.get('/', async (req, res) => {
       };
     });
 
-    res.json({ roles: rolesWithCounts });
+    res.json({
+      success: true,
+      data: rolesWithCounts
+    });
   } catch (error) {
     console.error('Get roles error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
   }
 });
 
@@ -99,13 +105,22 @@ router.get('/:roleId', async (req, res) => {
       .single();
 
     if (error || !role) {
-      return res.status(404).json({ error: 'Role not found' });
+      return res.status(404).json({
+        success: false,
+        error: 'Role not found'
+      });
     }
 
-    res.json({ role });
+    res.json({
+      success: true,
+      data: role
+    });
   } catch (error) {
     console.error('Get role error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
   }
 });
 
@@ -159,8 +174,9 @@ router.post('/', requirePermission('permissions.manage'), async (req, res) => {
     }
 
     res.status(201).json({
+      success: true,
       message: 'Role created successfully',
-      role,
+      data: role
     });
   } catch (error) {
     console.error('Create role error:', error);
@@ -222,8 +238,9 @@ router.patch('/:roleId', requirePermission('permissions.manage'), async (req, re
     }
 
     res.json({
+      success: true,
       message: 'Role updated successfully',
-      role: updatedRole,
+      data: updatedRole
     });
   } catch (error) {
     console.error('Update role error:', error);

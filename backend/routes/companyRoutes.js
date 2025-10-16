@@ -109,7 +109,7 @@ router.get('/', async (req, res) => {
 
     res.json({
       success: true,
-      companies: companiesWithCounts,
+      data: companiesWithCounts,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),

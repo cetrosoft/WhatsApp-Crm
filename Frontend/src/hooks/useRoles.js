@@ -20,7 +20,7 @@ export const useRoles = () => {
       setLoading(true);
       setError(null);
       const data = await roleAPI.getRoles();
-      setRoles(data.roles || []);
+      setRoles(data.data || []);
     } catch (err) {
       console.error('Error fetching roles:', err);
       setError(err.message || 'Failed to fetch roles');

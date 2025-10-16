@@ -49,7 +49,7 @@ const CRMSettingsTab = () => {
     try {
       setLoading(true);
       const response = await tagAPI.getTags();
-      setTags(response.tags || []);
+      setTags(response.data || []);
     } catch (error) {
       console.error('Error loading tags:', error);
       toast.error(t('failedToLoad', { resource: t('tags') }));

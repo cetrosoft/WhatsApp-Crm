@@ -32,7 +32,7 @@ router.get('/', async (req, res) => {
 
     res.json({
       success: true,
-      tags: tags || []
+      data: tags || []
     });
   } catch (error) {
     console.error('Error fetching tags:', error);
@@ -92,7 +92,8 @@ router.post('/', requirePermission(PERMISSIONS.TAGS_CREATE), async (req, res) =>
 
     res.status(201).json({
       success: true,
-      tag
+      message: 'Tag created successfully',
+      data: tag
     });
   } catch (error) {
     console.error('Error creating tag:', error);
@@ -136,7 +137,8 @@ router.put('/:id', requirePermission(PERMISSIONS.TAGS_EDIT), async (req, res) =>
 
     res.json({
       success: true,
-      tag
+      message: 'Tag updated successfully',
+      data: tag
     });
   } catch (error) {
     console.error('Error updating tag:', error);

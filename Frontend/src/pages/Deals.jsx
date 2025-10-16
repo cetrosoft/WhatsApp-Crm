@@ -456,7 +456,7 @@ const Deals = () => {
   const loadPipelines = async () => {
     try {
       const response = await pipelineAPI.getPipelines();
-      const pipelineList = response.pipelines || [];
+      const pipelineList = response.data || [];
       setPipelines(pipelineList);
 
       if (pipelineList.length > 0) {
@@ -477,7 +477,7 @@ const Deals = () => {
     try {
       setLoading(true);
       const response = await pipelineAPI.getPipelineDeals(selectedPipeline.id);
-      setDeals(response.deals || []);
+      setDeals(response.data || []);
     } catch (error) {
       console.error('Error loading deals:', error);
       toast.error(t('failedToLoad', { resource: t('deals') }));

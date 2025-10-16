@@ -360,7 +360,7 @@ const Tickets = () => {
   const loadUsers = async () => {
     try {
       const response = await userAPI.getUsers();
-      setUsers(response.users || []);
+      setUsers(response.data || []);
     } catch (error) {
       console.error('Error loading users:', error);
     }
@@ -384,7 +384,7 @@ const Tickets = () => {
   const loadCompanies = async () => {
     try {
       const response = await companyAPI.getCompanies();
-      setCompanies(response.companies || []);
+      setCompanies(response.data || []);
     } catch (error) {
       console.error('Error loading companies:', error);
     }

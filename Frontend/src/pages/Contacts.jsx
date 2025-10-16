@@ -72,10 +72,10 @@ const Contacts = () => {
         companyAPI.getCompanies(),
       ]);
 
-      setStatuses(statusesRes.statuses || []);
-      setUsers(usersRes.data || usersRes.users || []);
-      setTags(tagsRes.tags || []);
-      setCompanies(companiesRes.companies || []);
+      setStatuses(statusesRes.data || []);
+      setUsers(usersRes.data || []);
+      setTags(tagsRes.data || []);
+      setCompanies(companiesRes.data || []);
     } catch (error) {
       console.error('Error loading lookup data:', error);
     }

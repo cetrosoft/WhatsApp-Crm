@@ -43,7 +43,7 @@ const FilterPanel = ({ filters, onFiltersChange, isOpen }) => {
     try {
       setLoadingUsers(true);
       const response = await userAPI.getUsers();
-      setUsers(response.users || []);
+      setUsers(response.data || []);
     } catch (error) {
       console.error('Error loading users:', error);
       toast.error(t('failedToLoad', { resource: t('users') }));
@@ -57,7 +57,7 @@ const FilterPanel = ({ filters, onFiltersChange, isOpen }) => {
       setLoadingTags(true);
       const response = await tagAPI.getTags();
       console.log('Tags loaded:', response);
-      setTags(response.tags || response || []);
+      setTags(response.data || []);
     } catch (error) {
       console.error('Error loading tags:', error);
       toast.error(t('failedToLoad', { resource: t('tags') }));

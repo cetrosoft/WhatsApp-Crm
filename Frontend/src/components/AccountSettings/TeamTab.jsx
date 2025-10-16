@@ -29,7 +29,7 @@ const TeamTab = () => {
   const fetchUsers = async () => {
     try {
       const data = await userAPI.getUsers();
-      setUsers(data.users || []);
+      setUsers(data.data || []);
     } catch (error) {
       toast.error(t('failedToLoadTeamMembers', { ns: 'common' }));
     } finally {
@@ -40,10 +40,10 @@ const TeamTab = () => {
   const fetchRoles = async () => {
     try {
       const data = await roleAPI.getRoles();
-      setRoles(data.roles || []);
+      setRoles(data.data || []);
       // Set default roleId to member role
-      if (data.roles && data.roles.length > 0) {
-        const memberRole = data.roles.find(r => r.slug === 'member');
+      if (data.data && data.data.length > 0) {
+        const memberRole = data.data.find(r => r.slug === 'member');
         if (memberRole) {
           setInviteData(prev => ({ ...prev, roleId: memberRole.id }));
         }

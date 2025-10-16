@@ -83,14 +83,14 @@ const CreateRole = () => {
       console.log('Role data:', data);
 
       setFormData({
-        name: data.role.name,
-        slug: data.role.slug,
-        description: data.role.description || '',
-        is_system: data.role.is_system,
+        name: data.data.name,
+        slug: data.data.slug,
+        description: data.data.description || '',
+        is_system: data.data.is_system,
       });
 
       // Set permissions
-      const permissions = Array.isArray(data.role.permissions) ? data.role.permissions : [];
+      const permissions = Array.isArray(data.data.permissions) ? data.data.permissions : [];
       setSelectedPermissions(permissions);
       setError(null);
     } catch (error) {

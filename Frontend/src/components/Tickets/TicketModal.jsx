@@ -65,10 +65,10 @@ const TicketModal = ({ ticket, onSave, onClose }) => {
 
         setCategories(categoriesRes.data || []);
         setContacts(contactsRes.data || []);
-        setCompanies(companiesRes.companies || []);
+        setCompanies(companiesRes.data || []);
         setDeals(dealsRes.data || []);
-        setUsers(usersRes.users || []);
-        setTags(tagsRes.tags || []);
+        setUsers(usersRes.data || []);
+        setTags(tagsRes.data || []);
 
         // If editing, load ticket tags
         if (ticket?.tag_details && ticket.tag_details.length > 0) {

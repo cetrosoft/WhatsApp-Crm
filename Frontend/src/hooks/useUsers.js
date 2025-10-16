@@ -23,7 +23,7 @@ export const useUsers = () => {
       setLoading(true);
       setError(null);
       const data = await userAPI.getUsers();
-      setUsers(data.users || []);
+      setUsers(data.data || []);
     } catch (err) {
       console.error('Error fetching users:', err);
       setError(err.message || t('failedToLoad', { resource: t('users') }));

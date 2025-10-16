@@ -72,9 +72,9 @@ const DealModal = ({ deal, pipeline, stages, onSave, onClose }) => {
         ]);
 
         setContacts(contactsRes.data || []);
-        setCompanies(companiesRes.companies || []);
-        setUsers(usersRes.users || []);
-        setTags(tagsRes.tags || []);
+        setCompanies(companiesRes.data || []);
+        setUsers(usersRes.data || []);
+        setTags(tagsRes.data || []);
       } catch (error) {
         console.error('Error loading dropdown data:', error);
         toast.error(t('failedToLoadData'));
@@ -193,8 +193,8 @@ const DealModal = ({ deal, pipeline, stages, onSave, onClose }) => {
         if (error.message.includes('already exists')) {
           // Tag was just created by another user, reload tags
           const tagsRes = await tagAPI.getTags();
-          setTags(tagsRes.tags || []);
-          const reloadedTag = tagsRes.tags?.find(t => t.name_en.toLowerCase() === newTagName.toLowerCase());
+          setTags(tagsRes.data || []);
+          const reloadedTag = tagsRes.data?.find(t => t.name_en.toLowerCase() === newTagName.toLowerCase());
           if (reloadedTag) tagId = reloadedTag.id;
         } else {
           toast.error(t('failedToCreate', { resource: t('tag') }));

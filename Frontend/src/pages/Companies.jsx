@@ -47,7 +47,7 @@ const Companies = () => {
     try {
       setLoading(true);
       const response = await companyAPI.getCompanies();
-      setCompanies(response.companies || []);
+      setCompanies(response.data || []);
     } catch (error) {
       console.error('Error loading companies:', error);
       toast.error(t('failedToLoad', { resource: t('companies') }));
@@ -62,8 +62,8 @@ const Companies = () => {
         countryAPI.getCountries(),
         tagAPI.getTags()
       ]);
-      setCountries(countriesRes.countries || []);
-      setTags(tagsRes.tags || []);
+      setCountries(countriesRes.data || []);
+      setTags(tagsRes.data || []);
     } catch (error) {
       console.error('Error loading filters:', error);
     }

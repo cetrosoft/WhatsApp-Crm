@@ -59,7 +59,7 @@ const TicketFilters = ({ filters, onFiltersChange, isOpen }) => {
     try {
       setLoadingUsers(true);
       const response = await userAPI.getUsers();
-      setUsers(response.users || []);
+      setUsers(response.data || []);
     } catch (error) {
       console.error('Error loading users:', error);
       toast.error(t('failedToLoad', { resource: t('users') }));
@@ -72,7 +72,7 @@ const TicketFilters = ({ filters, onFiltersChange, isOpen }) => {
     try {
       setLoadingTags(true);
       const response = await tagAPI.getTags();
-      setTags(response.tags || []);
+      setTags(response.data || []);
     } catch (error) {
       console.error('Error loading tags:', error);
       toast.error(t('failedToLoad', { resource: t('tags') }));
@@ -111,7 +111,7 @@ const TicketFilters = ({ filters, onFiltersChange, isOpen }) => {
     try {
       setLoadingCompanies(true);
       const response = await companyAPI.getCompanies();
-      setCompanies(response.companies || []);
+      setCompanies(response.data || []);
     } catch (error) {
       console.error('Error loading companies:', error);
       toast.error(t('failedToLoad', { resource: t('companies') }));

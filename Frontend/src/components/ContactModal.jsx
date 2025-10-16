@@ -116,12 +116,12 @@ const ContactModal = ({ isOpen, onClose, contact, onSave }) => {
         companyAPI.getCompanies(),
       ]);
 
-      setCountries(countriesRes.countries || []);
-      setStatuses(statusesRes.statuses || []);
-      setUsers(usersRes.data || usersRes.users || []);
-      setTags(tagsRes.tags || []);
-      setLeadSources(leadSourcesRes.leadSources || []);
-      setCompanies(companiesRes.companies || []);
+      setCountries(countriesRes.data || []);
+      setStatuses(statusesRes.data || []);
+      setUsers(usersRes.data || []);
+      setTags(tagsRes.data || []);
+      setLeadSources(leadSourcesRes.data || []);
+      setCompanies(companiesRes.data || []);
     } catch (error) {
       console.error('Error loading lookup data:', error);
       toast.error(t('failedToLoadFormData', { ns: 'common' }));

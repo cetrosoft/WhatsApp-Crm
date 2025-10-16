@@ -46,7 +46,7 @@ const RolesPermissions = () => {
     try {
       const data = await roleAPI.getRoles();
       console.log('Roles data:', data);
-      setRoles(data.roles || []);
+      setRoles(data.data || []);
     } catch (error) {
       console.error('Fetch roles error:', error);
       toast.error(error.message || t('common:error'));
@@ -90,8 +90,8 @@ const RolesPermissions = () => {
       fetchRoles();
 
       // Open quick edit modal with the new role
-      if (response.role) {
-        setSelectedRole(response.role);
+      if (response.data) {
+        setSelectedRole(response.data);
         setEditModalOpen(true);
       }
     } catch (error) {

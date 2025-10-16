@@ -42,7 +42,7 @@ const Pipelines = () => {
     try {
       setLoading(true);
       const response = await pipelineAPI.getPipelines();
-      setPipelines(response.pipelines || []);
+      setPipelines(response.data || []);
     } catch (error) {
       console.error('Error loading pipelines:', error);
       toast.error(t('failedToLoadPipelines'));
