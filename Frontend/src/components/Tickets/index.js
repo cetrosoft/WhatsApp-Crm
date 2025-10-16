@@ -15,6 +15,9 @@ export { default as TicketKanbanView } from './TicketKanbanView';
 export { default as TicketModal } from './TicketModal';
 export { default as TicketFormFields } from './TicketFormFields';
 export { default as TicketFilters } from './TicketFilters';
+export { default as TicketDetailDrawer } from './TicketDetailDrawer';
+export { default as TicketQuickActions } from './TicketQuickActions';
+export { default as QuickAddTicketCard } from './QuickAddTicketCard';
 
 // Settings components
 export { default as CategoryListView } from './CategoryListView';

@@ -268,23 +268,26 @@ const TicketModal = ({ ticket, onSave, onClose }) => {
       <div className="flex min-h-full items-center justify-center p-4">
         <div className="relative bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-            <h2 className="text-xl font-semibold text-gray-900">
-              {isEdit ? t('editTicket') : t('createTicket')}
-            </h2>
-            <button
-              type="button"
-              onClick={onClose}
-              className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition"
-            >
-              <X className="w-5 h-5" />
-            </button>
+          <div className="border-b border-gray-200">
+            <div className="flex items-center justify-between px-6 py-4">
+              <h2 className="text-xl font-semibold text-gray-900">
+                {isEdit ? t('editTicket') : t('createTicket')}
+              </h2>
+              <button
+                type="button"
+                onClick={onClose}
+                className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
           </div>
 
           {/* Form */}
           <form onSubmit={handleSave} className="flex flex-col flex-1 overflow-hidden">
             <div className="flex-1 overflow-y-auto px-6 py-4">
               <TicketFormFields
+                mode="full"
                 formData={formData}
                 handleChange={handleChange}
                 errors={errors}

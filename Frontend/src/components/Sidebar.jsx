@@ -187,7 +187,8 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
           <button
             onClick={() => toggleExpanded(itemId)}
             className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all duration-200 ${
-              hasActiveChild
+              // Only highlight parent if it has an active child AND no path itself (pure dropdown)
+              hasActiveChild && !item.path
                 ? "bg-[#6264a7] text-white font-semibold"
                 : "hover:bg-[#5a5d8a] hover:text-white"
             }`}

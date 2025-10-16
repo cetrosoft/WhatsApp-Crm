@@ -17,19 +17,29 @@
  * />
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, User, Calendar, Clock, Edit2, Trash2 } from 'lucide-react';
-import { TicketStatusBadge, TicketPriorityBadge, TicketCategoryBadge } from './index';
+import { TicketStatusBadge, TicketPriorityBadge, TicketCategoryBadge, TicketQuickActions, QuickAddTicketCard } from './index';
 
 const TicketKanbanView = ({
   tickets,
   columns,
   groupBy,
   getTicketsByGroup,
+  onViewTicket,
   onEdit,
   onDelete,
   onAddTicket,
+  onQuickAddTicket,
+  onStatusChange,
+  onPriorityChange,
+  categories,
+  users,
+  contacts,
+  companies,
+  deals,
+  quickAddSaving,
   canEdit,
   canDelete
 }) => {
@@ -74,17 +84,52 @@ const TicketKanbanView = ({
   };
 
   /**
+   * Get ticket age badge with color coding
+   * Returns badge data including age text, colors, and overdue status
+   */
+  const getTicketAgeBadge = (ticket) => {
+    if (!ticket.created_at) return null;
+
+    const days = Math.floor((Date.now() - new Date(ticket.created_at)) / (1000 * 60 * 60 * 24));
+    const overdueCheck = ticket.due_date &&
+                         new Date(ticket.due_date) < new Date() &&
+                         ticket.status !== 'closed' &&
+                         ticket.status !== 'resolved';
+
+    // Determine badge color based on age and overdue status
+    let bgColor = 'bg-gray-100';
+    let textColor = 'text-gray-600';
+
+    if (overdueCheck) {
+      bgColor = 'bg-red-100';
+      textColor = 'text-red-600';
+    } else if (days >= 7) {
+      bgColor = 'bg-yellow-100';
+      textColor = 'text-yellow-700';
+    }
+
+    // Format age text
+    let ageText;
+    if (days === 0) ageText = isRTL ? 'اليوم' : 'Today';
+    else if (days === 1) ageText = isRTL ? 'أمس' : '1d';
+    else ageText = isRTL ? `${days} يوم` : `${days}d`;
+
+    return { ageText, bgColor, textColor, isOverdue: overdueCheck };
+  };
+
+  /**
    * Render ticket card
    */
   const TicketCard = ({ ticket }) => {
     const overdueTicket = isOverdue(ticket);
+    const ageBadge = getTicketAgeBadge(ticket);
 
     return (
       <div
         className={`bg-white border rounded-lg p-3 mb-2 hover:shadow-md transition-shadow cursor-pointer ${
           overdueTicket ? 'border-red-300' : 'border-gray-200'
         }`}
-        onClick={() => onEdit(ticket)}
+        onClick={() => onViewTicket ? onViewTicket(ticket) : onEdit(ticket)}
       >
         {/* Ticket Number */}
         <div className="text-xs font-mono text-gray-500 mb-1">
@@ -96,15 +141,38 @@ const TicketKanbanView = ({
           {ticket.title}
         </h4>
 
-        {/* Priority Badge (if not grouping by priority) */}
-        {groupBy !== 'priority' && (
+        {/* Age Badge (with overdue indicator) */}
+        {ageBadge && (
+          <div className="flex items-center gap-1 mb-2">
+            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${ageBadge.bgColor} ${ageBadge.textColor}`}>
+              <Clock className="w-3 h-3" />
+              {ageBadge.ageText}
+              {ageBadge.isOverdue && <span>⚠️</span>}
+            </span>
+          </div>
+        )}
+
+        {/* Quick Actions (Status + Priority) */}
+        {onStatusChange && onPriorityChange && (
+          <div className="mb-2" onClick={(e) => e.stopPropagation()}>
+            <TicketQuickActions
+              ticket={ticket}
+              onStatusChange={onStatusChange}
+              onPriorityChange={onPriorityChange}
+              canEdit={canEdit}
+            />
+          </div>
+        )}
+
+        {/* Priority Badge (if not grouping by priority and no quick actions) */}
+        {groupBy !== 'priority' && !onStatusChange && (
           <div className="mb-2">
             <TicketPriorityBadge priority={ticket.priority} size="sm" showIcon={false} />
           </div>
         )}
 
-        {/* Status Badge (if not grouping by status) */}
-        {groupBy !== 'status' && (
+        {/* Status Badge (if not grouping by status and no quick actions) */}
+        {groupBy !== 'status' && !onStatusChange && (
           <div className="mb-2">
             <TicketStatusBadge status={ticket.status} size="sm" />
           </div>
@@ -124,7 +192,7 @@ const TicketKanbanView = ({
           </div>
         )}
 
-        {/* Due Date */}
+        {/* Close Date */}
         {ticket.due_date && (
           <div className={`flex items-center gap-1 text-xs mb-2 ${overdueTicket ? 'text-red-600' : 'text-gray-600'}`}>
             <Calendar className="w-3 h-3" />
@@ -173,8 +241,8 @@ const TicketKanbanView = ({
           </div>
         )}
 
-        {/* Actions (on hover) */}
-        <div className="flex items-center justify-end gap-1 mt-2 opacity-0 hover:opacity-100 transition-opacity">
+        {/* Actions (always visible) */}
+        <div className="flex items-center justify-end gap-1 mt-2">
           {canEdit && (
             <button
               onClick={(e) => {
@@ -205,6 +273,11 @@ const TicketKanbanView = ({
   };
 
   /**
+   * Quick Add Card State per Column
+   */
+  const [showQuickAddForColumn, setShowQuickAddForColumn] = useState(null);
+
+  /**
    * Render column
    */
   const Column = ({ column }) => {
@@ -230,9 +303,9 @@ const TicketKanbanView = ({
 
             {canEdit && (
               <button
-                onClick={onAddTicket}
+                onClick={() => setShowQuickAddForColumn(column.id)}
                 className="w-7 h-7 flex items-center justify-center rounded-full bg-white border border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-indigo-600 hover:border-indigo-300 transition-all shadow-sm"
-                title={t('createTicket')}
+                title={t('quickAdd')}
               >
                 <Plus className="w-4 h-4" />
               </button>
@@ -242,6 +315,26 @@ const TicketKanbanView = ({
 
         {/* Column Content */}
         <div className="bg-gray-50 rounded-lg border-2 border-transparent p-3 min-h-[500px]">
+          {/* Quick Add Card */}
+          {showQuickAddForColumn === column.id && (
+            <QuickAddTicketCard
+              columnId={column.id}
+              columnName={column.name}
+              groupBy={groupBy}
+              onSubmit={(data) => {
+                onQuickAddTicket(data);
+                setShowQuickAddForColumn(null);
+              }}
+              onCancel={() => setShowQuickAddForColumn(null)}
+              categories={categories}
+              users={users}
+              contacts={contacts}
+              companies={companies}
+              deals={deals}
+              saving={quickAddSaving}
+            />
+          )}
+
           {ticketsInColumn.length === 0 ? (
             <div className="flex items-center justify-center h-32 text-center">
               <p className="text-sm text-gray-400">{t('noTickets')}</p>

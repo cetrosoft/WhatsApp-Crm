@@ -1175,6 +1175,20 @@ export const ticketAPI = {
   getAttachments: async (ticketId) => {
     return await apiCall(`/api/tickets/${ticketId}/attachments`);
   },
+
+  /**
+   * Get ticket history (audit trail)
+   */
+  getHistory: async (ticketId) => {
+    return await apiCall(`/api/tickets/${ticketId}/history`);
+  },
+
+  /**
+   * Get ticket statistics
+   */
+  getStats: async () => {
+    return await apiCall('/api/tickets/stats');
+  },
 };
 
 /**

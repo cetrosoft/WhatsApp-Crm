@@ -193,7 +193,7 @@ const TicketListView = ({ tickets, categories, tags, onEdit, onDelete, deletingI
                       )}
                     </td>
 
-                    {/* Due Date */}
+                    {/* Close Date */}
                     <td className="px-4 py-3 whitespace-nowrap">
                       {ticket.due_date ? (
                         <div className="flex items-center gap-1">

@@ -5,9 +5,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { User, Tag, Folder, AlertCircle, Zap, Calendar } from 'lucide-react';
+import { User, Tag, Folder, AlertCircle, Zap, Calendar, Building2, UserCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { userAPI, tagAPI, ticketAPI } from '../../services/api';
+import { userAPI, tagAPI, ticketAPI, contactAPI, companyAPI } from '../../services/api';
+import MultiSelectTags from '../MultiSelectTags';
+import SearchableSelect from '../SearchableSelect';
 
 const TicketFilters = ({ filters, onFiltersChange, isOpen }) => {
   const { t, i18n } = useTranslation(['common']);
@@ -17,9 +19,13 @@ const TicketFilters = ({ filters, onFiltersChange, isOpen }) => {
   const [users, setUsers] = useState([]);
   const [tags, setTags] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [contacts, setContacts] = useState([]);
+  const [companies, setCompanies] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [loadingTags, setLoadingTags] = useState(false);
   const [loadingCategories, setLoadingCategories] = useState(false);
+  const [loadingContacts, setLoadingContacts] = useState(false);
+  const [loadingCompanies, setLoadingCompanies] = useState(false);
 
   // Status options
   const statusOptions = [
@@ -44,6 +50,8 @@ const TicketFilters = ({ filters, onFiltersChange, isOpen }) => {
       loadUsers();
       loadTags();
       loadCategories();
+      loadContacts();
+      loadCompanies();
     }
   }, [isOpen]);
 
@@ -77,12 +85,38 @@ const TicketFilters = ({ filters, onFiltersChange, isOpen }) => {
     try {
       setLoadingCategories(true);
       const response = await ticketAPI.getCategories();
-      setCategories(response.categories || []);
+      setCategories(response.data || []);
     } catch (error) {
       console.error('Error loading categories:', error);
       toast.error(t('failedToLoad', { resource: t('ticketCategories') }));
     } finally {
       setLoadingCategories(false);
+    }
+  };
+
+  const loadContacts = async () => {
+    try {
+      setLoadingContacts(true);
+      const response = await contactAPI.getContacts();
+      setContacts(response.data || []);
+    } catch (error) {
+      console.error('Error loading contacts:', error);
+      toast.error(t('failedToLoad', { resource: t('contacts') }));
+    } finally {
+      setLoadingContacts(false);
+    }
+  };
+
+  const loadCompanies = async () => {
+    try {
+      setLoadingCompanies(true);
+      const response = await companyAPI.getCompanies();
+      setCompanies(response.companies || []);
+    } catch (error) {
+      console.error('Error loading companies:', error);
+      toast.error(t('failedToLoad', { resource: t('companies') }));
+    } finally {
+      setLoadingCompanies(false);
     }
   };
 
@@ -99,6 +133,8 @@ const TicketFilters = ({ filters, onFiltersChange, isOpen }) => {
       priority: null,
       category: null,
       assignedTo: null,
+      contact: null,
+      company: null,
       tags: [],
       showOverdue: false,
       showUnassigned: false,
@@ -113,6 +149,8 @@ const TicketFilters = ({ filters, onFiltersChange, isOpen }) => {
     if (filters.priority) count++;
     if (filters.category) count++;
     if (filters.assignedTo) count++;
+    if (filters.contact) count++;
+    if (filters.company) count++;
     if (filters.tags && filters.tags.length > 0) count++;
     if (filters.showOverdue) count++;
     if (filters.showUnassigned) count++;
@@ -144,8 +182,8 @@ const TicketFilters = ({ filters, onFiltersChange, isOpen }) => {
 
       {/* Filter Grid */}
       <div className="space-y-3">
-        {/* Row 1: Status, Priority, Category */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        {/* Row 1: Status, Priority, Category, Assigned To */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
           {/* Status */}
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">
@@ -202,10 +240,7 @@ const TicketFilters = ({ filters, onFiltersChange, isOpen }) => {
               ))}
             </select>
           </div>
-        </div>
 
-        {/* Row 2: Assigned To, Tags */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {/* Assigned To */}
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">
@@ -226,37 +261,47 @@ const TicketFilters = ({ filters, onFiltersChange, isOpen }) => {
               ))}
             </select>
           </div>
-
-          {/* Tags (Multi-select placeholder - simplified) */}
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              <Tag className="w-3 h-3 inline me-1" />
-              {t('ticketTags')}
-            </label>
-            <select
-              multiple
-              value={filters.tags || []}
-              onChange={(e) => {
-                const selectedOptions = Array.from(e.target.selectedOptions, option => option.value);
-                handleFilterChange('tags', selectedOptions);
-              }}
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              disabled={loadingTags}
-              size={3}
-            >
-              {tags.map(tag => (
-                <option key={tag.id} value={tag.id}>
-                  {isRTL && tag.name_ar ? tag.name_ar : tag.name_en}
-                </option>
-              ))}
-            </select>
-            <p className="mt-1 text-xs text-gray-500">Hold Ctrl/Cmd to select multiple</p>
-          </div>
         </div>
 
-        {/* Row 3: Due Date Range */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {/* Due Date From */}
+        {/* Row 2: Contact, Company, Date From, Date To */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+          {/* Contact */}
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">
+              <UserCircle className="w-3 h-3 inline me-1" />
+              {t('contact')}
+            </label>
+            <SearchableSelect
+              value={filters.contact || null}
+              onChange={(value) => handleFilterChange('contact', value)}
+              options={contacts}
+              placeholder={t('selectContact')}
+              getOptionLabel={(contact) => contact.name}
+              getOptionValue={(contact) => contact.id}
+              allowClear
+              disabled={loadingContacts}
+            />
+          </div>
+
+          {/* Company */}
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">
+              <Building2 className="w-3 h-3 inline me-1" />
+              {t('company')}
+            </label>
+            <SearchableSelect
+              value={filters.company || null}
+              onChange={(value) => handleFilterChange('company', value)}
+              options={companies}
+              placeholder={t('selectCompany')}
+              getOptionLabel={(company) => company.name}
+              getOptionValue={(company) => company.id}
+              allowClear
+              disabled={loadingCompanies}
+            />
+          </div>
+
+          {/* Close Date From */}
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">
               <Calendar className="w-3 h-3 inline me-1" />
@@ -270,7 +315,7 @@ const TicketFilters = ({ filters, onFiltersChange, isOpen }) => {
             />
           </div>
 
-          {/* Due Date To */}
+          {/* Close Date To */}
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">
               <Calendar className="w-3 h-3 inline me-1" />
@@ -285,29 +330,46 @@ const TicketFilters = ({ filters, onFiltersChange, isOpen }) => {
           </div>
         </div>
 
-        {/* Row 4: Checkboxes */}
-        <div className="flex flex-wrap gap-4">
-          {/* Show Overdue */}
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={filters.showOverdue || false}
-              onChange={(e) => handleFilterChange('showOverdue', e.target.checked)}
-              className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+        {/* Row 3: Tags + Checkboxes */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {/* Tags (spans 2 columns) */}
+          <div className="md:col-span-2">
+            <label className="block text-xs font-medium text-gray-700 mb-1">
+              <Tag className="w-3 h-3 inline me-1" />
+              {t('ticketTags')}
+            </label>
+            <MultiSelectTags
+              selectedTags={filters.tags || []}
+              onChange={(selectedTags) => handleFilterChange('tags', selectedTags)}
+              options={tags}
+              placeholder={t('selectTags')}
             />
-            <span className="text-sm text-gray-700">{t('showOverdue')}</span>
-          </label>
+          </div>
 
-          {/* Show Unassigned */}
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={filters.showUnassigned || false}
-              onChange={(e) => handleFilterChange('showUnassigned', e.target.checked)}
-              className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-            />
-            <span className="text-sm text-gray-700">{t('showUnassigned')}</span>
-          </label>
+          {/* Checkboxes (span 1 column) */}
+          <div className="flex flex-col gap-2 justify-end pb-1">
+            {/* Show Overdue */}
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={filters.showOverdue || false}
+                onChange={(e) => handleFilterChange('showOverdue', e.target.checked)}
+                className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+              />
+              <span className="text-sm text-gray-700">{t('showOverdue')}</span>
+            </label>
+
+            {/* Show Unassigned */}
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={filters.showUnassigned || false}
+                onChange={(e) => handleFilterChange('showUnassigned', e.target.checked)}
+                className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+              />
+              <span className="text-sm text-gray-700">{t('showUnassigned')}</span>
+            </label>
+          </div>
         </div>
       </div>
 

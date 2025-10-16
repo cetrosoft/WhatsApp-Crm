@@ -9,10 +9,10 @@ import { Plus, Search, Filter, Ticket as TicketIcon, Grid3x3, ChevronDown, Layou
 import toast from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
 import { hasPermission } from '../utils/permissionUtils';
-import { ticketAPI, userAPI } from '../services/api';
+import { ticketAPI, userAPI, contactAPI, companyAPI, dealAPI } from '../services/api';
 
 // Import components
-import { TicketListView, TicketKanbanView, TicketModal, TicketFilters } from '../components/Tickets';
+import { TicketListView, TicketKanbanView, TicketModal, TicketFilters, TicketDetailDrawer } from '../components/Tickets';
 
 const Tickets = () => {
   const { t, i18n } = useTranslation(['common']);
@@ -23,10 +23,15 @@ const Tickets = () => {
   const [tickets, setTickets] = useState([]);
   const [categories, setCategories] = useState([]);
   const [users, setUsers] = useState([]);
+  const [contacts, setContacts] = useState([]);
+  const [companies, setCompanies] = useState([]);
+  const [deals, setDeals] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [showDetailDrawer, setShowDetailDrawer] = useState(false);
+  const [selectedTicket, setSelectedTicket] = useState(null);
   const [editingTicket, setEditingTicket] = useState(null);
   const [viewMode, setViewMode] = useState('cards'); // 'cards' | 'list'
   const [filters, setFilters] = useState({
@@ -34,6 +39,8 @@ const Tickets = () => {
     priority: null,
     category: null,
     assignedTo: null,
+    contact: null,
+    company: null,
     tags: [],
     showOverdue: false,
     showUnassigned: false,
@@ -43,6 +50,7 @@ const Tickets = () => {
   const [groupBy, setGroupBy] = useState('status');
   const [showGroupByDropdown, setShowGroupByDropdown] = useState(false);
   const [groupBySearchTerm, setGroupBySearchTerm] = useState('');
+  const [quickAddSaving, setQuickAddSaving] = useState(false);
   const groupByDropdownRef = useRef(null);
   const initialFilterSetRef = useRef(false);
 
@@ -84,6 +92,9 @@ const Tickets = () => {
       loadTickets();
       loadCategories();
       loadUsers();
+      loadContacts();
+      loadCompanies();
+      loadDeals();
     }
   }, [canView]);
 
@@ -208,10 +219,11 @@ const Tickets = () => {
    */
   const getFilteredTickets = () => {
     return tickets.filter(ticket => {
-      // Search filter
+      // Search filter (Enhanced: includes description)
       const matchesSearch = searchTerm
         ? ticket.ticket_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
           ticket.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          ticket.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
           ticket.contact?.name?.toLowerCase().includes(searchTerm.toLowerCase())
         : true;
 
@@ -233,6 +245,16 @@ const Tickets = () => {
       // Assigned To filter
       const matchesAssignedTo = filters.assignedTo
         ? ticket.assigned_to === filters.assignedTo
+        : true;
+
+      // Contact filter
+      const matchesContact = filters.contact
+        ? ticket.contact_id === filters.contact
+        : true;
+
+      // Company filter
+      const matchesCompany = filters.company
+        ? ticket.company_id === filters.company
         : true;
 
       // Tags filter
@@ -265,6 +287,8 @@ const Tickets = () => {
         matchesPriority &&
         matchesCategory &&
         matchesAssignedTo &&
+        matchesContact &&
+        matchesCompany &&
         matchesTags &&
         matchesOverdue &&
         matchesUnassigned &&
@@ -343,6 +367,42 @@ const Tickets = () => {
   };
 
   /**
+   * Load contacts for ticket assignment
+   */
+  const loadContacts = async () => {
+    try {
+      const response = await contactAPI.getContacts();
+      setContacts(response.data || []);
+    } catch (error) {
+      console.error('Error loading contacts:', error);
+    }
+  };
+
+  /**
+   * Load companies for ticket assignment
+   */
+  const loadCompanies = async () => {
+    try {
+      const response = await companyAPI.getCompanies();
+      setCompanies(response.companies || []);
+    } catch (error) {
+      console.error('Error loading companies:', error);
+    }
+  };
+
+  /**
+   * Load deals for ticket assignment
+   */
+  const loadDeals = async () => {
+    try {
+      const response = await dealAPI.getDeals();
+      setDeals(response.data || []);
+    } catch (error) {
+      console.error('Error loading deals:', error);
+    }
+  };
+
+  /**
    * Handle add ticket
    */
   const handleAddTicket = () => {
@@ -356,6 +416,14 @@ const Tickets = () => {
   };
 
   /**
+   * Handle view ticket (opens drawer)
+   */
+  const handleViewTicket = (ticket) => {
+    setSelectedTicket(ticket);
+    setShowDetailDrawer(true);
+  };
+
+  /**
    * Handle edit ticket
    */
   const handleEditTicket = (ticket) => {
@@ -366,6 +434,56 @@ const Tickets = () => {
 
     setEditingTicket(ticket);
     setShowModal(true);
+  };
+
+  /**
+   * Handle status change (quick action)
+   */
+  const handleStatusChange = async (ticket, newStatus) => {
+    try {
+      await ticketAPI.changeStatus(ticket.id, newStatus);
+      toast.success(t('statusUpdated'));
+      loadTickets();
+    } catch (error) {
+      console.error('Error changing status:', error);
+      toast.error(t('failedToUpdate'));
+    }
+  };
+
+  /**
+   * Handle priority change (quick action)
+   */
+  const handlePriorityChange = async (ticket, newPriority) => {
+    try {
+      await ticketAPI.changePriority(ticket.id, newPriority);
+      toast.success(t('priorityUpdated'));
+      loadTickets();
+    } catch (error) {
+      console.error('Error changing priority:', error);
+      toast.error(t('failedToUpdate'));
+    }
+  };
+
+  /**
+   * Handle quick add ticket (inline card)
+   */
+  const handleQuickAddTicket = async (formData) => {
+    if (!canCreate) {
+      toast.error(t('insufficientPermissions'));
+      return;
+    }
+
+    try {
+      setQuickAddSaving(true);
+      await ticketAPI.createTicket(formData);
+      toast.success(t('ticketCreated'));
+      loadTickets();
+    } catch (error) {
+      console.error('Error creating ticket:', error);
+      toast.error(t('failedToCreate', { resource: t('ticket') }));
+    } finally {
+      setQuickAddSaving(false);
+    }
   };
 
   /**
@@ -644,15 +762,40 @@ const Tickets = () => {
               columns={getGroupedColumns()}
               groupBy={groupBy}
               getTicketsByGroup={getTicketsByGroup}
+              onViewTicket={handleViewTicket}
               onEdit={handleEditTicket}
               onDelete={handleDeleteTicket}
               onAddTicket={handleAddTicket}
+              onQuickAddTicket={handleQuickAddTicket}
+              onStatusChange={handleStatusChange}
+              onPriorityChange={handlePriorityChange}
+              categories={categories}
+              users={users}
+              contacts={contacts}
+              companies={companies}
+              deals={deals}
+              quickAddSaving={quickAddSaving}
               canEdit={canEdit}
               canDelete={canDelete}
             />
           </div>
         )}
       </div>
+
+      {/* Ticket Detail Drawer */}
+      {showDetailDrawer && selectedTicket && (
+        <TicketDetailDrawer
+          ticket={selectedTicket}
+          onClose={() => {
+            setShowDetailDrawer(false);
+            setSelectedTicket(null);
+          }}
+          onEdit={(ticket) => {
+            setShowDetailDrawer(false);
+            handleEditTicket(ticket);
+          }}
+        />
+      )}
 
       {/* Ticket Modal */}
       {showModal && (

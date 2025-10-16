@@ -72,7 +72,7 @@ const DealModal = ({ deal, pipeline, stages, onSave, onClose }) => {
         ]);
 
         setContacts(contactsRes.data || []);
-        setCompanies(companiesRes.data || []);
+        setCompanies(companiesRes.companies || []);
         setUsers(usersRes.users || []);
         setTags(tagsRes.tags || []);
       } catch (error) {
